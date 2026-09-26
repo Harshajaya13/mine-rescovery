@@ -1,0 +1,2 @@
+# Raspberry Pi Dependencies (install on RPi)
+RPi.GPIO==0.7.1

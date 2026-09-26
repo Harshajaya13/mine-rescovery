@@ -1,0 +1,20 @@
+# ── Install in this exact order ──────────────────────────────────────────────
+#
+# STEP 1: Install GPU PyTorch FIRST (before ultralytics)
+#   For CUDA 12.x:
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   For CUDA 11.8:
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#   Check your CUDA version with: nvidia-smi
+#
+# STEP 2: Then install the rest:
+#     pip install -r requirements.txt
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+flask==3.0.3
+flask-socketio==5.3.6
+opencv-python==4.10.0.84
+ultralytics==8.2.87
+simple-websocket==1.0.0
+mpremote                  # Tool to upload code to ESP32 (replaces Thonny)

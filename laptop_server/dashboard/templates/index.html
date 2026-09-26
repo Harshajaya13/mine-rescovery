@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mine Rescue Rover - Surface Control</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --border-glow: rgba(56, 189, 248, 0.3);
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            
+            --safe-color: #22c55e;
+            --warn-color: #f59e0b;
+            --crit-color: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-glow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: var(--safe-color);
+            color: #000;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        /* Glassmorphism Panels */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Video Feed */
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border-glow);
+        }
+
+        .video-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Telemetry Grid */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .metric-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        /* Controls */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .controls-grid button {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .controls-grid button:hover {
+            background: var(--accent);
+            color: #000;
+        }
+        
+        .controls-grid button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-up { grid-column: 2; }
+        .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-stop { grid-column: 2; grid-row: 2; background: rgba(239,68,68,0.2) !important; border-color: var(--crit-color) !important; color: var(--crit-color) !important; }
+        .btn-right { grid-column: 3; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 3; }
+
+        /* AI Report Log */
+        .ai-log {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            background: rgba(0,0,0,0.4);
+            padding: 1rem;
+            border-radius: 8px;
+            color: var(--accent);
+            height: 150px;
+            overflow-y: auto;
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Map */
+        .mine-map {
+            display: grid;
+            gap: 2px;
+            background: rgba(255,255,255,0.05);
+            padding: 0.5rem;
+            border-radius: 8px;
+        }
+
+        .map-cell {
+            aspect-ratio: 1;
+            background: rgba(0,0,0,0.5);
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+        }
+
+        .cell-safe { background: rgba(34, 197, 94, 0.3); }
+        .cell-hazard { background: rgba(239, 68, 68, 0.3); }
+        .cell-rover { background: var(--accent); color: #000; font-weight: bold; box-shadow: 0 0 10px var(--accent); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>AL-POWERED MINE RESCUE ROVER</h1>
+        <div class="status-badge" id="system-status">SYSTEM NORMAL</div>
+    </header>
+
+    <div class="container">
+        <!-- Main Content (Left) -->
+        <div class="panel">
+            <h2>Live Camera Feed (YOLOv8)</h2>
+            <div class="video-container">
+                <img src="/video_feed" alt="Camera Feed">
+            </div>
+
+            <h2>Telemetry & AI Analysis</h2>
+            <div class="telemetry-grid">
+                <div class="metric-card">
+                    <span style="color: var(--text-dim); font-size: 0.85rem;">GAS SENSOR (MQ-6)</span>
+                    <span class="metric-value" id="gas-val" style="color: var(--safe-color)">SAFE</span>
+                </div>
+                <div class="metric-card">
+                    <span style="color: var(--text-dim); font-size: 0.85rem;">OBSTACLE DIST</span>
+                    <span class="metric-value" id="dist-val">-- cm</span>
+                </div>
+                <div class="metric-card">
+                    <span style="color: var(--text-dim); font-size: 0.85rem;">SIGNAL (RSSI)</span>
+                    <span class="metric-value" id="rssi-val">-- dBm</span>
+                </div>
+                <div class="metric-card">
+                    <span style="color: var(--text-dim); font-size: 0.85rem;">AI ACTION</span>
+                    <span class="metric-value" id="action-val" style="font-size: 1.2rem;">--</span>
+                </div>
+            </div>
+
+            <div class="ai-log" id="ai-log">
+                > System initialized. Waiting for telemetry...
+            </div>
+        </div>
+
+        <!-- Sidebar (Right) -->
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            
+            <!-- Map Panel -->
+            <div class="panel">
+                <h2>Mine Section Map</h2>
+                <div class="mine-map" id="mine-map">
+                    <!-- JS will populate grid -->
+                </div>
+            </div>
+
+            <!-- Manual Override Panel -->
+            <div class="panel">
+                <h2>Manual Override</h2>
+                <div class="controls-grid">
+                    <button class="btn-up" onclick="sendCommand('forward')">W</button>
+                    <button class="btn-left" onclick="sendCommand('left')">A</button>
+                    <button class="btn-stop" onclick="sendCommand('stop')">STOP</button>
+                    <button class="btn-right" onclick="sendCommand('right')">D</button>
+                    <button class="btn-down" onclick="sendCommand('backward')">S</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Send command to server
+        function sendCommand(action) {
+            fetch('/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'w' || e.key === 'W') sendCommand('forward');
+            if(e.key === 's' || e.key === 'S') sendCommand('backward');
+            if(e.key === 'a' || e.key === 'A') sendCommand('left');
+            if(e.key === 'd' || e.key === 'D') sendCommand('right');
+            if(e.key === ' ') sendCommand('stop');
+        });
+
+        // Listen for telemetry
+        socket.on('telemetry_update', (data) => {
+            const sensor = data.sensor;
+            const ai = data.ai_report;
+            const map = data.map;
+
+            // Update Metrics
+            document.getElementById('dist-val').innerText = sensor.distance_cm + ' cm';
+            document.getElementById('rssi-val').innerText = sensor.rssi + ' dBm';
+            
+            const gasElem = document.getElementById('gas-val');
+            if (sensor.gas_detected === 1) {
+                gasElem.innerText = 'DETECTED';
+                gasElem.style.color = 'var(--crit-color)';
+            } else {
+                gasElem.innerText = 'SAFE';
+                gasElem.style.color = 'var(--safe-color)';
+            }
+
+            // Update AI State
+            document.getElementById('action-val').innerText = ai.suggested_action.toUpperCase();
+            
+            const statusBadge = document.getElementById('system-status');
+            statusBadge.innerText = ai.status;
+            if(ai.status === 'CRITICAL' || ai.status === 'ALERT') {
+                statusBadge.style.background = 'var(--crit-color)';
+                statusBadge.style.color = '#fff';
+            } else if (ai.status === 'WARNING') {
+                statusBadge.style.background = 'var(--warn-color)';
+                statusBadge.style.color = '#000';
+            } else {
+                statusBadge.style.background = 'var(--safe-color)';
+                statusBadge.style.color = '#000';
+            }
+
+            // Update Log
+            if(ai.message) {
+                const log = document.getElementById('ai-log');
+                const time = new Date().toLocaleTimeString();
+                log.innerHTML = `> [${time}] ${ai.message}<br>` + log.innerHTML;
+            }
+
+            // Render Map
+            renderMap(map.grid, map.rover_pos, map.facing);
+        });
+
+        function renderMap(gridData, roverPos, facing) {
+            const mapContainer = document.getElementById('mine-map');
+            const size = gridData.length;
+            mapContainer.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            mapContainer.innerHTML = '';
+
+            for (let y = size - 1; y >= 0; y--) { // Y=0 is bottom
+                for (let x = 0; x < size; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'map-cell';
+                    
+                    const val = gridData[y][x];
+                    if (val === 1) cell.classList.add('cell-safe');
+                    if (val === 2) cell.classList.add('cell-hazard');
+
+                    if (x === roverPos[0] && y === roverPos[1]) {
+                        cell.classList.add('cell-rover');
+                        // Add facing arrow
+                        if(facing === 'N') cell.innerHTML = '↑';
+                        if(facing === 'S') cell.innerHTML = '↓';
+                        if(facing === 'E') cell.innerHTML = '→';
+                        if(facing === 'W') cell.innerHTML = '←';
+                    }
+
+                    mapContainer.appendChild(cell);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
