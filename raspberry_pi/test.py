@@ -6,10 +6,10 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
 pins = {
-    "IN1 - Right Forward (Physical Pin 11)": config.IN1,  # BCM 17
-    "IN2 - Right Reverse (Physical Pin 13)": config.IN2,  # BCM 22
-    "IN3 - Left Forward  (Physical Pin 15)": config.IN3,  # BCM 24
-    "IN4 - Left Reverse  (Physical Pin 18)": config.IN4   # BCM 27
+    "IN1 - Left  Motor Backward (Pin 11, BCM 17)": config.IN1,
+    "IN2 - Left  Motor Forward  (Pin 13, BCM 27)": config.IN2,
+    "IN3 - Right Motor Backward (Pin 15, BCM 22)": config.IN3,
+    "IN4 - Right Motor Forward  (Pin 18, BCM 24)": config.IN4,
 }
 
 # Setup all pins to OUTPUT and LOW initially

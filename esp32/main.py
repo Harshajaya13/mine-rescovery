@@ -7,7 +7,7 @@ import json
 # --- CONFIGURATION ---
 SSID = "kesava"              # WiFi network name
 PASSWORD = "123456789"  # ← fill your WiFi password here
-SERVER_IP = "10.59.164.241"  # Raspberry Pi IP
+SERVER_IP = "192.168.4.241"  # Raspberry Pi IP
 SERVER_PORT = 5005
 
 # --- HARDWARE SETUP ---
@@ -33,6 +33,7 @@ def connect_wifi():
             print('.', end='')
     print('\nNetwork config:', wlan.ifconfig())
     return wlan
+    
 
 # --- SENSOR READING ---
 TIMEOUT_US = 30000  # 30ms timeout (~5m max range)

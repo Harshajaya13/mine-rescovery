@@ -37,6 +37,7 @@ def handle_esp32_sensor_data():
         conn, addr = srv.accept()
         print(f"[ESP32] Connected from {addr}")
         last_signal_time = time.time()
+        recv_buffer = ""  # Buffer for TCP fragmentation fix
 
         while True:
             try:
@@ -44,8 +45,12 @@ def handle_esp32_sensor_data():
                 if not data:
                     break
 
-                lines = data.decode(errors='ignore').strip().split('\n')
-                for line in lines:
+                # Accumulate into buffer (handles fragmented TCP packets)
+                recv_buffer += data.decode(errors='ignore')
+
+                # Process only complete newline-terminated JSON lines
+                while '\n' in recv_buffer:
+                    line, recv_buffer = recv_buffer.split('\n', 1)
                     line = line.strip()
                     if not line:
                         continue
@@ -57,7 +62,7 @@ def handle_esp32_sensor_data():
                         # Broadcast to all connected laptop clients
                         broadcast_to_laptop(payload)
 
-                        # Local emergency safety check (acts immediately, no laptop needed)
+                        # Local emergency safety check
                         check_safety(payload)
 
                     except json.JSONDecodeError:
@@ -154,13 +159,19 @@ def listen_for_laptop_commands():
 # 4. LOCAL SAFETY CHECK
 # ─────────────────────────────────────────
 def check_safety(payload):
-    """Immediate local response to hazards — does not wait for laptop AI."""
-    if payload.get('gas_detected') == 1:
-        print("⚠ CRITICAL: Gas Detected! Stopping motors.")
+    """Immediate local response to hazards — does not interrupt auto-return."""
+    # Skip motor stop if rover is currently auto-returning (don't drift path)
+    if nav.is_returning:
+        return
+
+    # Accept gas_detected as int 1, bool True, or string "1"/"true"
+    gas = payload.get('gas_detected')
+    if gas in (1, True, "1", "true"):
+        print("\u26a0 CRITICAL: Gas Detected! Stopping motors.")
         motors.stop()
 
     if 0 < payload.get('distance_cm', 100) < 15:
-        print("⚠ WARNING: Obstacle very close! Stopping.")
+        print("\u26a0 WARNING: Obstacle very close! Stopping.")
         motors.stop()
 
 
