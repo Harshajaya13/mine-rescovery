@@ -7,11 +7,10 @@ COMMAND_PORT   = 5006   # Laptop connects here to send motor commands
 TELEMETRY_PORT = 5007   # Laptop connects here to receive live sensor stream
 
 # ──────────────────────────────────────────────────────────
-# L298N Motor Driver — Direction pins only (BCM numbering)
-# ENA and ENB jumpers are ON (full speed always)
-# Physical Pins: 11, 13, 15, 18
+# L298N Motor Driver — Direction pins (Rover Perspective)
+# Physical Pins: 11, 13, 15, 18 (BCM 17, 22, 24, 27)
 # ──────────────────────────────────────────────────────────
-IN1 = 17   # Physical Pin 11  — Left  Forward
-IN2 = 22   # Physical Pin 13  — Left  Backward
-IN3 = 24   # Physical Pin 15  — Right Forward
-IN4 = 27   # Physical Pin 18  — Right Backward
+IN1 = 17   # Physical Pin 11  — Right Forward
+IN2 = 22   # Physical Pin 13  — Right Backward
+IN3 = 24   # Physical Pin 15  — Left  Forward
+IN4 = 27   # Physical Pin 18  — Left  Backward

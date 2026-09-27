@@ -6,10 +6,8 @@ import config
 class MotorController:
     """
     Motor controller for L298N using direction pins only.
-    ENA and ENB jumpers are ON (always full speed).
-
-    Left  side: IN1, IN2
-    Right side: IN3, IN4
+    Right side: IN1 (Fwd), IN2 (Bwd)
+    Left  side: IN3 (Fwd), IN4 (Bwd)
     """
 
     def __init__(self):
@@ -31,23 +29,23 @@ class MotorController:
         GPIO.output(config.IN4, GPIO.HIGH if in4 else GPIO.LOW)
 
     def move_forward(self):
-        # Left: forward (IN1=H, IN2=L), Right: forward (IN3=H, IN4=L)
+        # Right: forward (IN1=1), Left: forward (IN3=1)
         self._set(1, 0, 1, 0)
         print("[Motors] Forward")
 
     def move_backward(self):
-        # Left: backward (IN1=L, IN2=H), Right: backward (IN3=L, IN4=H)
+        # Right: backward (IN2=1), Left: backward (IN4=1)
         self._set(0, 1, 0, 1)
         print("[Motors] Backward")
 
     def turn_left(self):
-        # Left: backward, Right: forward
-        self._set(0, 1, 1, 0)
+        # Right: forward (IN1=1), Left: backward (IN4=1)
+        self._set(1, 0, 0, 1)
         print("[Motors] Turn Left")
 
     def turn_right(self):
-        # Left: forward, Right: backward
-        self._set(1, 0, 0, 1)
+        # Right: backward (IN2=1), Left: forward (IN3=1)
+        self._set(0, 1, 1, 0)
         print("[Motors] Turn Right")
 
     def stop(self):
