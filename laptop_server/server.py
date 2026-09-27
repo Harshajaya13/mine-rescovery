@@ -19,6 +19,8 @@ mapper   = MineMapper()
 ai       = AIAnalyzer(mapper)
 latest_telemetry = {}
 ai_report        = {}
+auto_mode        = False
+
 
 
 # ─────────────────────────────────────────
@@ -82,15 +84,17 @@ def subscribe_to_rpi_telemetry():
                         socketio.emit('telemetry_update', {
                             'sensor':    latest_telemetry,
                             'ai_report': ai_report,
-                            'map':       mapper.get_map_state()
+                            'map':       mapper.get_map_state(),
+                            'auto_mode': auto_mode
                         })
 
-                        # Autonomous AI actions
-                        action = ai_report.get('suggested_action', '')
-                        if action == 'reroute':
-                            send_command_to_rpi('right')
-                        elif action == 'evacuate':
-                            send_command_to_rpi('stop')
+                        # Autonomous AI actions (only if Auto Mode is ON)
+                        if auto_mode:
+                            action = ai_report.get('suggested_action', '')
+                            if action == 'reroute':
+                                send_command_to_rpi('right')
+                            elif action == 'evacuate':
+                                send_command_to_rpi('stop')
 
                     except json.JSONDecodeError:
                         pass
@@ -121,6 +125,9 @@ def generate_frames():
             cap = open_capture()
             continue
 
+        # Flip the video 180 degrees (upside down mount)
+        frame = cv2.flip(frame, -1)
+
         annotated_frame, _ = detector.process_frame(frame)
         ret, buffer = cv2.imencode('.jpg', annotated_frame)
         if not ret:
@@ -148,6 +155,13 @@ def handle_command():
     if action:
         send_command_to_rpi(action)
     return jsonify({"status": "ok"})
+
+@app.route('/toggle_mode', methods=['POST'])
+def toggle_mode():
+    global auto_mode
+    auto_mode = not auto_mode
+    print(f"[System] Auto Mode is now {'ON' if auto_mode else 'OFF'}")
+    return jsonify({"auto_mode": auto_mode})
 
 
 # ─────────────────────────────────────────

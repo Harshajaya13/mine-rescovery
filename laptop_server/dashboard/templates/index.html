@@ -2,371 +2,1119 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mine Rescue Rover - Surface Control</title>
-    <!-- Modern Typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mine Rescue Rover - Mission Control</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js & Socket.io -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --panel-bg: rgba(30, 41, 59, 0.7);
-            --border-glow: rgba(56, 189, 248, 0.3);
-            --accent: #38bdf8;
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
+            --bg-base: #09090b;
+            --panel-bg: #18181b;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-main: #f97316;
+            --accent-hover: #ea580c;
+            --text-main: #fafafa;
+            --text-muted: #a1a1aa;
             
-            --safe-color: #22c55e;
-            --warn-color: #f59e0b;
-            --crit-color: #ef4444;
+            --status-safe: #22c55e;
+            --status-warn: #f59e0b;
+            --status-crit: #ef4444;
+            --status-info: #3b82f6;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-dark);
+            background-color: var(--bg-base);
             color: var(--text-main);
-            min-height: 100vh;
-            display: grid;
-            grid-template-rows: auto 1fr;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: filter 0.3s, transform 0.1s;
         }
 
+        /* VIGNETTE AND SHAKE EFFECTS */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle, transparent 50%, rgba(239, 68, 68, 0) 100%);
+            transition: all 0.5s ease;
+            z-index: 9999;
+            opacity: 0;
+        }
+
+        body.state-CRITICAL::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(239, 68, 68, 0.4) 100%); }
+        body.state-WARNING::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(245, 158, 11, 0.3) 100%); }
+        body.state-ALERT::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(59, 130, 246, 0.3) 100%); }
+
+        @keyframes screen-shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        body.shaking { animation: screen-shake 0.5s; }
+
+        /* HEADER & TICKER */
         header {
-            padding: 1.5rem 2rem;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-glow);
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 0.8rem 2rem;
+            z-index: 100;
+        }
+        
+        header h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        header h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: 1px;
-            color: var(--accent);
-            text-transform: uppercase;
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background: #000;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: var(--accent-main);
+            animation: ticker-scroll 25s linear infinite;
+        }
+
+        @keyframes ticker-scroll {
+            0% { transform: translateX(100vw); }
+            100% { transform: translateX(-100%); }
         }
 
         .status-badge {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            background: var(--safe-color);
-            color: #000;
-            transition: all 0.3s ease;
+            padding: 0.4rem 1rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            transition: all 0.3s;
         }
 
-        .container {
+        /* LAYOUT */
+        .dashboard {
             display: grid;
-            grid-template-columns: 1fr 350px;
-            gap: 2rem;
-            padding: 2rem;
+            grid-template-columns: 1fr 380px;
+            gap: 1rem;
+            padding: 1rem;
+            height: calc(100vh - 85px);
+            overflow-y: auto;
         }
 
-        /* Glassmorphism Panels */
-        .panel {
-            background: var(--panel-bg);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(16px);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        .col-left, .col-right {
             display: flex;
             flex-direction: column;
             gap: 1rem;
         }
 
-        h2 {
-            font-size: 1.1rem;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 0.5rem;
         }
 
-        /* Video Feed */
-        .video-container {
-            width: 100%;
-            aspect-ratio: 16/9;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            position: relative;
-            border: 1px solid var(--border-glow);
+        h2 {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
         }
 
-        .video-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        /* PANEL A: DUAL VISION */
+        .vision-tabs { display: flex; gap: 10px; }
+        .vision-tab {
+            background: transparent; color: var(--text-muted); border: 1px solid transparent;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 4px 8px; cursor: pointer; border-radius: 4px;
+        }
+        .vision-tab.active { background: rgba(255,255,255,0.1); color: var(--text-main); border-color: var(--border-color); }
+
+        .video-wrapper {
+            position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
+            border-radius: 6px; overflow: hidden; border: 2px solid var(--border-color);
         }
 
-        /* Telemetry Grid */
-        .telemetry-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
+        canvas#video-feed { width: 100%; height: 100%; object-fit: cover; transition: filter 0.3s; }
+
+        /* Thermal Mode CSS Tricks */
+        .video-wrapper.thermal-mode canvas {
+            filter: grayscale(100%) contrast(150%) hue-rotate(180deg) invert(100%) sepia(100%) saturate(500%) hue-rotate(280deg);
         }
 
-        .metric-card {
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        .thermal-legend {
+            display: none; position: absolute; right: 10px; top: 50px; width: 15px; height: 150px;
+            background: linear-gradient(to top, blue, cyan, yellow, red); border: 1px solid white; border-radius: 4px;
+        }
+        .video-wrapper.thermal-mode .thermal-legend { display: block; }
+
+        .hud-overlay {
+            position: absolute; inset: 0; pointer-events: none; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;
         }
 
-        .metric-value {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.8rem;
-            font-weight: 600;
-            margin-top: 0.5rem;
+        .hud-toast {
+            display: none; align-self: center; margin: auto; border: 2px solid var(--status-crit); padding: 10px 20px;
+            background: rgba(239, 68, 68, 0.2); backdrop-filter: blur(2px); font-family: 'JetBrains Mono', monospace;
+            font-weight: 800; font-size: 1rem; color: var(--status-crit); animation: pulse-toast 1s infinite alternate;
         }
 
-        /* Controls */
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-            margin-top: 1rem;
+        .target-lock {
+            display: none; align-self: center; margin: auto; border: 2px dashed var(--status-crit); padding: 15px 30px;
+            background: rgba(239, 68, 68, 0.15); backdrop-filter: blur(2px); animation: pulse-lock 1s infinite alternate;
         }
 
-        .controls-grid button {
-            background: rgba(56, 189, 248, 0.1);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 1rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s;
+        .target-lock-text {
+            font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 1.2rem;
+            color: var(--status-crit); text-shadow: 0 0 10px var(--status-crit);
         }
 
-        .controls-grid button:hover {
-            background: var(--accent);
-            color: #000;
-        }
+        @keyframes pulse-toast { from { transform: scale(1); } to { transform: scale(1.05); } }
+        @keyframes pulse-lock { from { transform: scale(1); box-shadow: 0 0 0px var(--status-crit); } to { transform: scale(1.05); box-shadow: 0 0 20px var(--status-crit); } }
+
+        .confidence-meter { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent-main); display: flex; justify-content: space-between; }
+
+        /* PANEL B: ENVIRONMENTAL BAY */
+        .gauges-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 10px 0; }
+        .gauge { display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
+        .gauge-svg { width: 100%; max-width: 80px; }
+        .gauge-val { position: absolute; top: 40%; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; }
+        .gauge-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; }
         
-        .controls-grid button:active {
-            transform: scale(0.95);
+        /* PANEL C: WORKER TRACKER */
+        .worker-card {
+            background: rgba(59, 130, 246, 0.1); border-color: var(--status-info);
+            display: none; animation: slideIn 0.5s ease-out;
         }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        .btn-up { grid-column: 2; }
-        .btn-left { grid-column: 1; grid-row: 2; }
-        .btn-stop { grid-column: 2; grid-row: 2; background: rgba(239,68,68,0.2) !important; border-color: var(--crit-color) !important; color: var(--crit-color) !important; }
-        .btn-right { grid-column: 3; grid-row: 2; }
-        .btn-down { grid-column: 2; grid-row: 3; }
-
-        /* AI Report Log */
-        .ai-log {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            background: rgba(0,0,0,0.4);
-            padding: 1rem;
-            border-radius: 8px;
-            color: var(--accent);
-            height: 150px;
-            overflow-y: auto;
-            border-left: 3px solid var(--accent);
-        }
-
-        /* Map */
+        /* PANEL D: MAP UPGRADES */
+        .map-header-icons { display: flex; gap: 15px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
         .mine-map {
-            display: grid;
-            gap: 2px;
-            background: rgba(255,255,255,0.05);
-            padding: 0.5rem;
-            border-radius: 8px;
+            display: grid; gap: 2px; background: rgba(255,255,255,0.05); padding: 2px;
+            border-radius: 4px; width: 100%; aspect-ratio: 1; position: relative;
         }
 
-        .map-cell {
-            aspect-ratio: 1;
-            background: rgba(0,0,0,0.5);
-            border-radius: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
+        .map-cell { background: var(--bg-base); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; position: relative; transition: 0.2s; }
+        .cell-safe { background: rgba(34, 197, 94, 0.05); }
+        .cell-hazard { background: rgba(239, 68, 68, 0.2); }
+        .cell-exit { background: rgba(34, 197, 94, 0.4); border: 1px solid var(--status-safe); font-size: 0.5rem; font-family: monospace; color: var(--status-safe); }
+        .cell-path { background: rgba(255,255,255,0.1); }
+        
+        .cell-astar-path {
+            background: rgba(249, 115, 22, 0.3); border: 1px dashed var(--accent-main);
+            animation: pulse-route 1.5s infinite;
         }
+        @keyframes pulse-route { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
-        .cell-safe { background: rgba(34, 197, 94, 0.3); }
-        .cell-hazard { background: rgba(239, 68, 68, 0.3); }
-        .cell-rover { background: var(--accent); color: #000; font-weight: bold; box-shadow: 0 0 10px var(--accent); }
+        .cell-rover { background: var(--accent-main); color: #000; font-weight: 800; border-radius: 50%; transition: 0.3s; z-index: 10; }
+        .cell-worker {
+            background: var(--status-info); color: #fff; border-radius: 50%;
+            box-shadow: 0 0 15px var(--status-info); animation: pulse-worker 1s infinite alternate; z-index: 5;
+        }
+        @keyframes pulse-worker { from { transform: scale(0.8); } to { transform: scale(1.1); } }
+        
+        .cell-crack::after { content: '[WARN]'; position: absolute; font-size: 0.5rem; font-family: monospace; color: var(--status-warn); }
 
+        .signal-degraded .map-cell { opacity: 0.4; }
+        .signal-degraded .cell-rover { opacity: 1; }
+        .signal-degraded .cell-worker { opacity: 1; }
+
+        /* SCENARIO & CONTROLS */
+        .scenario-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .btn-scenario {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted);
+            padding: 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+        }
+        .btn-scenario:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .btn-toggle { background: var(--bg-base); border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
+        .btn-toggle.active { background: var(--accent-main); color: #fff; border-color: var(--accent-hover); }
+
+        /* TIMELINE */
+        .timeline { display: flex; flex-direction: column; gap: 15px; padding-left: 10px; border-left: 2px solid var(--border-color); margin-top: 10px; }
+        .time-step { position: relative; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+        .time-step::before { content: ''; position: absolute; left: -15px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--panel-bg); border: 2px solid var(--border-color); }
+        .time-step.active { color: var(--text-main); }
+        .time-step.active::before { background: var(--accent-main); border-color: var(--accent-main); box-shadow: 0 0 10px var(--accent-main); }
+        .time-step.done { color: var(--status-safe); }
+        .time-step.done::before { background: var(--status-safe); border-color: var(--status-safe); }
+        
+        .export-btn { background: var(--text-main); color: var(--bg-base); font-weight: 800; border: none; padding: 6px 15px; border-radius: 4px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 0.8rem; transition: 0.2s; }
+        .export-btn:hover { background: var(--text-muted); color: #000; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+        .controls-grid button { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; padding: 15px; border-radius: 4px; font-weight: 700; cursor: pointer; }
+        .controls-grid button:active { background: var(--accent-main); }
+        .btn-stop { background: rgba(239,68,68,0.2) !important; color: var(--status-crit) !important; border-color: var(--status-crit) !important;}
+        
+        .events-table-wrapper { max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-base); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+        th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background: rgba(255,255,255,0.02); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; }
+        td { color: var(--text-main); }
+        td.highlight-detected { color: var(--accent-main); font-weight: 600; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: var(--panel-bg); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color); max-width: 500px; width: 100%; }
+        .modal textarea { width: 100%; height: 250px; background: #000; color: #fff; font-family: monospace; font-size: 0.75rem; padding: 10px; border: 1px solid var(--border-color); margin: 15px 0; }
+
+        @media (max-width: 900px) {
+            body { overflow-y: auto; height: auto; }
+            .dashboard { grid-template-columns: 1fr; height: auto; overflow: visible; }
+            .col-left, .col-right { width: 100%; }
+            .gauges-container { grid-template-columns: repeat(3, 1fr); }
+            header { flex-direction: column; gap: 10px; padding: 10px; }
+            .header-controls { flex-wrap: wrap; justify-content: center; }
+            .mine-map { max-width: 500px; margin: 0 auto; }
+            .controls-grid button { padding: 20px; font-size: 1.2rem; }
+        }
     </style>
 </head>
-<body>
+<body class="state-NORMAL">
+
+    <div class="ticker-wrap">
+        <div class="ticker" id="header-ticker">SYSTEM BOOT SEQUENCE INITIATED... WAITING FOR TELEMETRY...</div>
+    </div>
 
     <header>
-        <h1>AL-POWERED MINE RESCUE ROVER</h1>
-        <div class="status-badge" id="system-status">SYSTEM NORMAL</div>
+        <h1><span style="color:var(--accent-main)">SYS.OP</span> SURFACE CONTROL</h1>
+        <div class="header-controls">
+            <label style="font-size:0.75rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="audio-toggle"> [AUDIO] Alert</label>
+            <button class="btn-toggle active" id="btn-mode-toggle" onclick="toggleAutoMode()">MANUAL MODE</button>
+            <button class="export-btn" onclick="openReportModal()">EXPORT INCIDENT</button>
+            <div class="status-badge" id="system-status" style="background: rgba(34,197,94,0.1); color: var(--status-safe); border-color: var(--status-safe);">SYSTEM NORMAL</div>
+        </div>
     </header>
 
-    <div class="container">
-        <!-- Main Content (Left) -->
-        <div class="panel">
-            <h2>Live Camera Feed (YOLOv8)</h2>
-            <div class="video-container">
-                <img src="/video_feed" alt="Camera Feed">
+    <div class="dashboard">
+        
+        <!-- LEFT COLUMN -->
+        <div class="col-left">
+            
+            <!-- PANEL A: DUAL VISION -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Live Vision Hub</h2>
+                    <div class="vision-tabs">
+                        <button class="vision-tab active" onclick="setVisionMode('rgb')" id="tab-rgb">RGB // YOLOv8</button>
+                        <button class="vision-tab" onclick="setVisionMode('thermal')" id="tab-thermal">THERMAL</button>
+                    </div>
+                </div>
+                <div class="video-wrapper" id="video-wrapper">
+                    <canvas id="video-feed"></canvas>
+                    <div class="thermal-legend"></div>
+                    <div class="hud-overlay">
+                        <div class="hud-top">
+                            <span style="background:rgba(0,0,0,0.5); padding:2px 5px; font-family:monospace; font-size:0.7rem; border:1px solid #fff;">REC</span>
+                            <span id="thermal-badge" style="display:none; background:var(--status-crit); color:#fff; padding:2px 5px; font-family:monospace; font-size:0.7rem;">HEAT SIGNATURE 36.4°C</span>
+                        </div>
+                        <div class="hud-toast" id="hud-toast">PATH BLOCKED BY HAZARDS!</div>
+                        <div class="target-lock" id="target-lock">
+                            <div class="target-lock-text" id="target-lock-text">WORKER LOCATED</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="confidence-meter">
+                    <span>AI CONFIDENCE</span>
+                    <span id="ai-conf">--%</span>
+                </div>
             </div>
 
-            <h2>Telemetry & AI Analysis</h2>
-            <div class="telemetry-grid">
-                <div class="metric-card">
-                    <span style="color: var(--text-dim); font-size: 0.85rem;">GAS SENSOR (MQ-6)</span>
-                    <span class="metric-value" id="gas-val" style="color: var(--safe-color)">SAFE</span>
-                </div>
-                <div class="metric-card">
-                    <span style="color: var(--text-dim); font-size: 0.85rem;">OBSTACLE DIST</span>
-                    <span class="metric-value" id="dist-val">-- cm</span>
-                </div>
-                <div class="metric-card">
-                    <span style="color: var(--text-dim); font-size: 0.85rem;">SIGNAL (RSSI)</span>
-                    <span class="metric-value" id="rssi-val">-- dBm</span>
-                </div>
-                <div class="metric-card">
-                    <span style="color: var(--text-dim); font-size: 0.85rem;">AI ACTION</span>
-                    <span class="metric-value" id="action-val" style="font-size: 1.2rem;">--</span>
+            <!-- PANEL B: ENVIRONMENTAL BAY -->
+            <div class="panel">
+                <div class="panel-header"><h2>Environmental Bay</h2></div>
+                <div class="gauges-container" id="gauges-container"></div>
+            </div>
+            
+            <!-- REAL METRIC CARDS -->
+            <div class="panel">
+                <div class="panel-header"><h2>Core Telemetry</h2></div>
+                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+                    <div class="panel" style="padding:10px; align-items:center;">
+                        <span style="font-size:0.6rem; color:var(--text-muted)">DISTANCE</span>
+                        <span style="font-family:'JetBrains Mono'; font-weight:700;" id="m-dist">-- cm</span>
+                    </div>
+                    <div class="panel" style="padding:10px; align-items:center;">
+                        <span style="font-size:0.6rem; color:var(--text-muted)">RSSI</span>
+                        <span style="font-family:'JetBrains Mono'; font-weight:700;" id="m-rssi">-- dBm</span>
+                    </div>
+                    <div class="panel" style="padding:10px; align-items:center;">
+                        <span style="font-size:0.6rem; color:var(--text-muted)">AI ACTION</span>
+                        <span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-main);" id="m-action">--</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="ai-log" id="ai-log">
-                > System initialized. Waiting for telemetry...
+            <!-- HISTORY CHART -->
+            <div class="panel">
+                <div class="panel-header"><h2>Telemetry History</h2></div>
+                <div style="height: 120px;"><canvas id="historyChart"></canvas></div>
             </div>
+
+            <!-- AI LOG TABLE -->
+            <div class="panel">
+                <div class="panel-header"><h2>AI Detection & Action Log</h2></div>
+                <div class="events-table-wrapper">
+                    <table>
+                        <thead><tr><th>TIME</th><th>TRIGGER</th><th>DETECTED</th><th>AI DECISION</th></tr></thead>
+                        <tbody id="events-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
-        <!-- Sidebar (Right) -->
-        <div style="display: flex; flex-direction: column; gap: 2rem;">
+        <!-- RIGHT COLUMN -->
+        <div class="col-right">
             
-            <!-- Map Panel -->
+            <!-- PANEL E: DEMO SCENARIO ENGINE -->
             <div class="panel">
-                <h2>Mine Section Map</h2>
-                <div class="mine-map" id="mine-map">
-                    <!-- JS will populate grid -->
+                <div class="panel-header"><h2>Simulation Engine</h2></div>
+                <div class="scenario-grid">
+                    <button class="btn-scenario" onclick="triggerScenario(1)">[1] GAS LEAK</button>
+                    <button class="btn-scenario" onclick="triggerScenario(2)">[2] STRUC ALRT</button>
+                    <button class="btn-scenario" onclick="triggerScenario(3)">[3] WORKER RES</button>
+                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px; margin-left:10px;"><input type="checkbox" id="chk-sim" checked onchange="toggleSimMode()"> MOCK_DATA</label>
+                </div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px; text-align:center;">Press ESC to Reset Normal</div>
+            </div>
+
+            <!-- PANEL C: WORKER TRACKER -->
+            <div class="panel worker-card" id="worker-card">
+                <div class="panel-header" style="border-bottom:none;">
+                    <h2 style="color:var(--status-info)">WORKER #07 LOCATED</h2>
+                    <span style="font-size:0.7rem; background:var(--status-warn); color:#000; padding:2px 5px; border-radius:3px;">UNRESPONSIVE</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-family:'JetBrains Mono'; font-size:0.8rem;">
+                    <div>Distance: <span id="w-dist" style="color:#fff; font-weight:bold;">-- m</span></div>
+                    <div>Location: <span id="w-loc" style="color:#fff; font-weight:bold;">--</span></div>
+                    <div>Local CH4: <span id="w-gas" style="color:var(--status-crit); font-weight:bold;">--%</span></div>
+                    <div>Time since loc: <span id="w-time" style="color:#fff; font-weight:bold;">00:00</span></div>
                 </div>
             </div>
 
-            <!-- Manual Override Panel -->
+            <!-- PANEL D: MAP -->
             <div class="panel">
-                <h2>Manual Override</h2>
+                <div class="panel-header">
+                    <h2>Sector Map Grid</h2>
+                    <div class="map-header-icons">
+                        <span id="map-wifi">[WIFI] -45dBm</span>
+                        <span id="map-bat" style="color:var(--status-safe)">[BAT] 92%</span>
+                    </div>
+                </div>
+                <div class="mine-map" id="mine-map"></div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal" onchange="renderMap()"> Dim Low Signal</label>
+                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat" onchange="renderMap()"> Risk Heatmap</label>
+                </div>
+            </div>
+
+            <!-- MANUAL CONTROLS -->
+            <div class="panel" id="manual-panel">
+                <div class="panel-header"><h2>Manual Override</h2></div>
                 <div class="controls-grid">
-                    <button class="btn-up" onclick="sendCommand('forward')">W</button>
-                    <button class="btn-left" onclick="sendCommand('left')">A</button>
-                    <button class="btn-stop" onclick="sendCommand('stop')">STOP</button>
-                    <button class="btn-right" onclick="sendCommand('right')">D</button>
-                    <button class="btn-down" onclick="sendCommand('backward')">S</button>
+                    <button style="grid-column:2" onclick="sendCommand('forward')">W</button>
+                    <button style="grid-column:1; grid-row:2" onclick="sendCommand('left')">A</button>
+                    <button class="btn-stop" style="grid-column:2; grid-row:2" onclick="sendCommand('stop')">STOP</button>
+                    <button style="grid-column:3; grid-row:2" onclick="sendCommand('right')">D</button>
+                    <button style="grid-column:2; grid-row:3" onclick="sendCommand('backward')">S</button>
+                </div>
+            </div>
+
+            <!-- PANEL F: TIMELINE -->
+            <div class="panel">
+                <div class="panel-header"><h2>Mission Timeline</h2></div>
+                <div class="timeline" id="mission-timeline">
+                    <div class="time-step done">DEPLOYED</div>
+                    <div class="time-step active" id="ts-explore">EXPLORING</div>
+                    <div class="time-step" id="ts-hazard">HAZARD DETECTED</div>
+                    <div class="time-step" id="ts-worker">WORKER LOCATED</div>
+                    <div class="time-step" id="ts-rescue">RESCUE ROUTE SET</div>
+                    <div class="time-step" id="ts-return">RETURNING</div>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <script>
-        const socket = io();
+    <!-- PANEL G: MODAL -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <h2>Post-Incident Report Ready</h2>
+            <textarea id="reportData" readonly></textarea>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn-scenario" onclick="document.getElementById('reportModal').style.display='none'">DISMISS</button>
+                <button class="export-btn" onclick="downloadReport()">DOWNLOAD .TXT</button>
+            </div>
+        </div>
+    </div>
 
-        // Send command to server
+    <script>
+        /* ========================================================
+           1. GLOBALS & SOCKET INIT
+           ======================================================== */
+        let SIM_MODE = true; 
+        let socket = null;
+        try {
+            socket = io();
+        } catch(e) {
+            console.warn('Backend offline — SIM fallback');
+        }
+        
+        let roverPos = [2, 2];
+        let workerPos = null;
+        let pastPaths = new Set(["2,2"]);
+        let mapSize = 10;
+        let commsDegraded = false;
+        
+        let activeScenario = 0;
+        let scenarioTick = 0;
+        let scenarioInterval = null;
+        let rescuePath = [];
+
+        let eventLog = []; 
+        let workerTimer = null;
+        let workerSeconds = 0;
+        let isAutoMode = false;
+        let beepAudioCtx = null;
+        let isThermal = false;
+        let confidence = 0;
+        let lastManualMove = 0;
+
+        let sysData = { ch4: 0.1, co: 5, o2: 20.8, temp: 28, hum: 55, rssi: -45, bat: 92, dist: 100 };
+        let gridData = Array(10).fill().map(() => Array(10).fill(1));
+        gridData[2][5] = 2; gridData[3][5] = 2; gridData[7][3] = 2; gridData[8][8] = 2; // Hazards
+
+        const GAUGES = [
+            { id: 'ch4', label: 'CH4 %', max: 2.0, zones: [{pct:0.5, c:'var(--status-safe)'}, {pct:0.625, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 1.25 },
+            { id: 'co', label: 'CO ppm', max: 100, zones: [{pct:0.25, c:'var(--status-safe)'}, {pct:0.5, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 50 },
+            { id: 'o2', label: 'O2 %', max: 25, zones: [{pct:0.75, c:'var(--status-crit)'}, {pct:0.8, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-safe)'}], critLow: 19.5 },
+            { id: 'temp', label: 'TEMP °C', max: 60, zones: [{pct:0.6, c:'var(--status-safe)'}, {pct:0.75, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 45 },
+            { id: 'hum', label: 'HUM %', max: 100, zones: [{pct:0.8, c:'var(--status-safe)'}, {pct:0.9, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 90 }
+        ];
+
+        /* ========================================================
+           2. INITIALIZATION
+           ======================================================== */
+        function init() {
+            renderGauges();
+            renderMap();
+            initChart();
+            requestAnimationFrame(drawProceduralVideo);
+            setInterval(() => { if(SIM_MODE) updateTelemetryTick(); }, 1000);
+        }
+
+        function toggleSimMode() {
+            SIM_MODE = document.getElementById('chk-sim').checked;
+            logEvent("System", SIM_MODE ? "Switched to Local MOCK Engine" : "Switched to Live HARDWARE Telemetry", "INFO");
+        }
+
+        /* ========================================================
+           3. REAL BACKEND INTEGRATION
+           ======================================================== */
+        if (socket) {
+            socket.on('telemetry_update', (data) => {
+                if(SIM_MODE) return; 
+                
+                const sensor = data.sensor || {};
+                const ai = data.ai_report || {};
+                const map = data.map || {};
+
+                sysData.ch4 = (sensor.gas_detected === 1) ? 1.5 : 0.1;
+                sysData.dist = sensor.distance_cm || 100;
+                sysData.rssi = sensor.rssi || -50;
+                
+                if(map.grid) gridData = map.grid;
+                if(map.rover_pos) roverPos = map.rover_pos;
+                pastPaths.add(`${roverPos[0]},${roverPos[1]}`);
+                
+                document.getElementById('m-dist').innerText = sysData.dist + ' cm';
+                document.getElementById('m-rssi').innerText = sysData.rssi + ' dBm';
+                document.getElementById('m-action').innerText = ai.suggested_action ? ai.suggested_action.toUpperCase() : '--';
+                
+                setSystemState(ai.status || 'NORMAL');
+                
+                if(ai.event) logEvent(ai.event.trigger, ai.event.detected, ai.event.action);
+
+                renderGauges();
+                renderMap();
+                updateChart();
+            });
+        }
+
+        function toggleAutoMode() {
+            fetch('/toggle_mode', { method: 'POST' }).then(res => res.json()).then(data => {
+                isAutoMode = data.auto_mode;
+                const btn = document.getElementById('btn-mode-toggle');
+                btn.classList.toggle('active', isAutoMode);
+                btn.innerText = isAutoMode ? 'AUTONOMOUS ACTIVE' : 'MANUAL MODE';
+                document.getElementById('manual-panel').style.opacity = isAutoMode ? '0.4' : '1';
+            }).catch(() => {
+                isAutoMode = !isAutoMode;
+                const btn = document.getElementById('btn-mode-toggle');
+                btn.classList.toggle('active', isAutoMode);
+                btn.innerText = isAutoMode ? 'AUTONOMOUS ACTIVE' : 'MANUAL MODE';
+                document.getElementById('manual-panel').style.opacity = isAutoMode ? '0.4' : '1';
+            });
+        }
+
         function sendCommand(action) {
+            if(isAutoMode) return;
+            lastManualMove = Date.now(); // Guard idle patrol
+            
+            if(SIM_MODE) {
+                let nx = roverPos[0], ny = roverPos[1];
+                if(action==='forward') ny++;
+                if(action==='backward') ny--;
+                if(action==='right') nx++;
+                if(action==='left') nx--;
+                
+                if(!isCellBlocked(nx, ny)) {
+                    roverPos = [nx, ny];
+                    pastPaths.add(`${nx},${ny}`);
+                    renderMap();
+                } else {
+                    showToast("CELL BLOCKED!");
+                    return;
+                }
+            }
+            
             fetch('/command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: action })
-            });
+            }).catch(() => {});
         }
-
-        // Keyboard controls
+        
         document.addEventListener('keydown', (e) => {
+            if(e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            if(isAutoMode) return;
+            
+            if(['w','a','s','d',' '].includes(e.key.toLowerCase())) {
+                if(e.target === document.body) e.preventDefault(); 
+            }
+            
             if(e.key === 'w' || e.key === 'W') sendCommand('forward');
             if(e.key === 's' || e.key === 'S') sendCommand('backward');
             if(e.key === 'a' || e.key === 'A') sendCommand('left');
             if(e.key === 'd' || e.key === 'D') sendCommand('right');
             if(e.key === ' ') sendCommand('stop');
+            
+            if(e.key === '1') triggerScenario(1);
+            if(e.key === '2') triggerScenario(2);
+            if(e.key === '3') triggerScenario(3);
+            if(e.key === 'Escape') triggerScenario(0);
         });
 
-        // Listen for telemetry
-        socket.on('telemetry_update', (data) => {
-            const sensor = data.sensor;
-            const ai = data.ai_report;
-            const map = data.map;
-
-            // Update Metrics
-            document.getElementById('dist-val').innerText = sensor.distance_cm + ' cm';
-            document.getElementById('rssi-val').innerText = sensor.rssi + ' dBm';
+        /* ========================================================
+           4. CANVAS VIDEO FEED
+           ======================================================== */
+        const vCanvas = document.getElementById('video-feed');
+        const vCtx = vCanvas.getContext('2d');
+        let vPhase = 0;
+        let aiBoxAlpha = 0;
+        
+        function drawProceduralVideo() {
+            vCanvas.width = vCanvas.clientWidth || 800;
+            vCanvas.height = vCanvas.clientHeight || 450;
+            let w = vCanvas.width;
+            let h = vCanvas.height;
             
-            const gasElem = document.getElementById('gas-val');
-            if (sensor.gas_detected === 1) {
-                gasElem.innerText = 'DETECTED';
-                gasElem.style.color = 'var(--crit-color)';
-            } else {
-                gasElem.innerText = 'SAFE';
-                gasElem.style.color = 'var(--safe-color)';
-            }
-
-            // Update AI State
-            document.getElementById('action-val').innerText = ai.suggested_action.toUpperCase();
+            let grd = vCtx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w);
+            grd.addColorStop(0, "#333");
+            grd.addColorStop(1, "#000");
+            vCtx.fillStyle = grd;
+            vCtx.fillRect(0, 0, w, h);
             
-            const statusBadge = document.getElementById('system-status');
-            statusBadge.innerText = ai.status;
-            if(ai.status === 'CRITICAL' || ai.status === 'ALERT') {
-                statusBadge.style.background = 'var(--crit-color)';
-                statusBadge.style.color = '#fff';
-            } else if (ai.status === 'WARNING') {
-                statusBadge.style.background = 'var(--warn-color)';
-                statusBadge.style.color = '#000';
-            } else {
-                statusBadge.style.background = 'var(--safe-color)';
-                statusBadge.style.color = '#000';
+            vCtx.strokeStyle = "rgba(255,255,255,0.05)";
+            vPhase += 2;
+            for(let i=0; i<w; i+=40) {
+                vCtx.beginPath(); vCtx.moveTo(i, 0); vCtx.lineTo(i - (vPhase%40), h); vCtx.stroke();
+            }
+            
+            // Thermal Blob
+            if(isThermal && activeScenario === 3 && scenarioTick > 20) {
+                let heatGrd = vCtx.createRadialGradient(w/2, h/2, 10, w/2, h/2, 80);
+                heatGrd.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+                heatGrd.addColorStop(0.5, "rgba(255, 0, 0, 0.5)");
+                heatGrd.addColorStop(1, "rgba(0, 0, 0, 0)");
+                vCtx.fillStyle = heatGrd;
+                vCtx.fillRect(w/2 - 100, h/2 - 100, 200, 200);
             }
 
-            // Update Log
-            if(ai.message) {
-                const log = document.getElementById('ai-log');
-                const time = new Date().toLocaleTimeString();
-                log.innerHTML = `> [${time}] ${ai.message}<br>` + log.innerHTML;
+            // AI Bounding Box
+            if(activeScenario === 3 && scenarioTick > 20 && !isThermal) {
+                aiBoxAlpha = Math.min(1, aiBoxAlpha + 0.05);
+                vCtx.strokeStyle = `rgba(239, 68, 68, ${aiBoxAlpha})`;
+                vCtx.lineWidth = 3;
+                vCtx.strokeRect(w/2 - 50, h/2 - 80, 100, 160);
+                vCtx.fillStyle = `rgba(239, 68, 68, ${aiBoxAlpha})`;
+                vCtx.font = "16px monospace";
+                vCtx.fillText(`PERSON ${confidence}%`, w/2 - 50, h/2 - 85);
+            } else { aiBoxAlpha = 0; }
+            
+            requestAnimationFrame(drawProceduralVideo);
+        }
+
+        /* ========================================================
+           5. GAUGES & LOG
+           ======================================================== */
+        function renderGauges() {
+            const container = document.getElementById('gauges-container');
+            container.innerHTML = '';
+            
+            GAUGES.forEach(g => {
+                let val = sysData[g.id];
+                let pct = Math.max(0, Math.min(1, val / g.max));
+                if(g.id==='o2') pct = val/g.max;
+
+                let strokeColor = '#fff'; 
+                if (g.crit && val > g.crit) strokeColor = 'var(--status-crit)';
+                if (g.critLow && val < g.critLow) strokeColor = 'var(--status-warn)';
+                
+                // SVG Draw zones (Green/Amber/Red base via dash offsets)
+                let bgHtml = '';
+                let startPct = 0;
+                let arcTotal = 125.66; // approx 40 * PI
+                g.zones.forEach(z => {
+                    let len = (z.pct - startPct) * arcTotal;
+                    let off = startPct * arcTotal;
+                    bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.3" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
+                    startPct = z.pct;
+                });
+                
+                container.innerHTML += `
+                    <div class="gauge">
+                        <svg class="gauge-svg" viewBox="0 0 100 50">
+                            ${bgHtml}
+                            <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${strokeColor}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${pct * arcTotal}, 200" style="transition:0.5s"/>
+                        </svg>
+                        <div class="gauge-val" style="color:${strokeColor}">${val.toFixed(1)}</div>
+                        <div class="gauge-label">${g.label}</div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('header-ticker').innerText = 
+                `STATUS: ${activeScenario===0?'NOMINAL':'EMERGENCY'} | CH4: ${sysData.ch4.toFixed(2)}% | CO: ${sysData.co.toFixed(0)}ppm | O2: ${sysData.o2.toFixed(1)}% | TEMP: ${sysData.temp.toFixed(1)}°C | HUM: ${sysData.hum.toFixed(0)}% | RSSI: ${sysData.rssi.toFixed(1)}dBm | BAT: ${sysData.bat.toFixed(0)}%`;
+            
+            if(SIM_MODE) {
+                document.getElementById('m-dist').innerText = sysData.dist.toFixed(1) + ' cm';
+                document.getElementById('m-rssi').innerText = sysData.rssi.toFixed(1) + ' dBm';
             }
+        }
 
-            // Render Map
-            renderMap(map.grid, map.rover_pos, map.facing);
-        });
+        function logEvent(trigger, detected, action) {
+            const timeNow = new Date().toLocaleTimeString();
+            eventLog.push({time: timeNow, msg: `[${trigger}] ${detected} -> ${action}`});
+            
+            const tbody = document.getElementById('events-table-body');
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${timeNow}</td><td>${trigger}</td><td class="highlight-detected">${detected.toUpperCase()}</td><td>${action}</td>`;
+            tbody.prepend(row);
+            if (tbody.children.length > 15) tbody.removeChild(tbody.lastChild);
+        }
 
-        function renderMap(gridData, roverPos, facing) {
-            const mapContainer = document.getElementById('mine-map');
-            const size = gridData.length;
-            mapContainer.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-            mapContainer.innerHTML = '';
+        function showToast(msg) {
+            const t = document.getElementById('hud-toast');
+            t.innerText = msg; t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
 
-            for (let y = size - 1; y >= 0; y--) { // Y=0 is bottom
-                for (let x = 0; x < size; x++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'map-cell';
+        /* ========================================================
+           6. CHART
+           ======================================================== */
+        let myChart;
+        function initChart() {
+            if (typeof Chart === 'undefined') { console.warn('Chart.js unavailable'); return; }
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array(20).fill(''),
+                    datasets: [{
+                        label: 'CH4 %', borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        data: Array(20).fill(0.1), tension: 0.3, borderWidth:2, pointRadius:0, fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { display: true } }, plugins: { legend: { display: false } } }
+            });
+        }
+        function updateChart() {
+            if(!myChart) return;
+            myChart.data.datasets[0].data.shift();
+            myChart.data.datasets[0].data.push(sysData.ch4);
+            myChart.update();
+        }
+
+        /* ========================================================
+           7. MAP & A* PATHFINDING
+           ======================================================== */
+        function isCellBlocked(x, y) {
+            if (x<0 || x>=mapSize || y<0 || y>=mapSize) return true;
+            if (gridData[y][x] === 2) return true; 
+            if (activeScenario === 2 && (y===5 || y===6) && x > 3 && x < 8) return true; 
+            return false;
+        }
+
+        function aStar(start, goal) {
+            let openSet = [{pos: start, g: 0, f: 0, parent: null}];
+            let closedSet = new Set();
+            
+            while(openSet.length > 0) {
+                openSet.sort((a,b) => a.f - b.f);
+                let current = openSet.shift();
+                
+                let cx = current.pos[0], cy = current.pos[1];
+                if(cx === goal[0] && cy === goal[1]) {
+                    let path = [];
+                    let curr = current;
+                    while(curr) { path.unshift(curr.pos); curr = curr.parent; }
+                    return path;
+                }
+                
+                closedSet.add(`${cx},${cy}`);
+                let neighbors = [[cx, cy-1], [cx, cy+1], [cx-1, cy], [cx+1, cy]];
+                for(let n of neighbors) {
+                    let nx = n[0], ny = n[1];
+                    if (isCellBlocked(nx, ny)) continue;
+                    if (closedSet.has(`${nx},${ny}`)) continue;
                     
-                    const val = gridData[y][x];
-                    if (val === 1) cell.classList.add('cell-safe');
-                    if (val === 2) cell.classList.add('cell-hazard');
+                    let g = current.g + 1;
+                    let h = Math.abs(nx - goal[0]) + Math.abs(ny - goal[1]);
+                    let f = g + h;
+                    
+                    let existing = openSet.find(x => x.pos[0] === nx && x.pos[1] === ny);
+                    if(existing && existing.g <= g) continue;
+                    if(existing) { existing.g = g; existing.f = f; existing.parent = current; } 
+                    else { openSet.push({pos: [nx,ny], g:g, f:f, parent:current}); }
+                }
+            }
+            return [];
+        }
 
-                    if (x === roverPos[0] && y === roverPos[1]) {
-                        cell.classList.add('cell-rover');
-                        // Add facing arrow
-                        if(facing === 'N') cell.innerHTML = '↑';
-                        if(facing === 'S') cell.innerHTML = '↓';
-                        if(facing === 'E') cell.innerHTML = '→';
-                        if(facing === 'W') cell.innerHTML = '←';
+        function renderMap() {
+            const m = document.getElementById('mine-map');
+            m.style.gridTemplateColumns = `repeat(${mapSize}, 1fr)`;
+            m.innerHTML = '';
+            
+            let dimSignal = document.getElementById('chk-signal').checked;
+            let showHeat = document.getElementById('chk-heat').checked;
+
+            if(commsDegraded && dimSignal) m.classList.add('signal-degraded');
+            else m.classList.remove('signal-degraded');
+
+            for (let y = mapSize - 1; y >= 0; y--) {
+                for (let x = 0; x < mapSize; x++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'map-cell cell-safe';
+
+                    if((x===0 && y===9) || (x===9 && y===0)) { cell.classList.add('cell-exit'); cell.innerHTML = '[EXIT]'; }
+                    if (gridData[y][x] === 2) { cell.classList.remove('cell-safe'); cell.classList.add('cell-hazard'); }
+                    if(activeScenario === 2 && (y===5 || y===6) && x > 3 && x < 8) { cell.classList.remove('cell-safe'); cell.classList.add('cell-crack'); }
+
+                    if(workerPos && x===workerPos[0] && y===workerPos[1]) { cell.classList.add('cell-worker'); cell.innerHTML = 'W'; }
+
+                    let isRescuePath = rescuePath.find(p => p[0]===x && p[1]===y);
+                    if (isRescuePath && !(x===roverPos[0] && y===roverPos[1])) {
+                        cell.classList.add('cell-astar-path');
+                    } else if (pastPaths.has(`${x},${y}`) && !(x===roverPos[0] && y===roverPos[1])) {
+                        cell.classList.add('cell-path');
                     }
 
-                    mapContainer.appendChild(cell);
+                    if (x === roverPos[0] && y === roverPos[1]) { cell.classList.add('cell-rover'); cell.innerHTML = '↑'; }
+
+                    if(showHeat) {
+                        let risk = (x+y)/20;
+                        if(activeScenario===1 && x>4 && y>4) risk = 0.9;
+                        cell.style.boxShadow = `inset 0 0 15px rgba(239,68,68,${risk})`;
+                    }
+                    m.appendChild(cell);
                 }
             }
         }
+
+        /* ========================================================
+           8. SYSTEM STATES & AUDIO
+           ======================================================== */
+        function playBeep() {
+            if(!document.getElementById('audio-toggle').checked) return;
+            if(!beepAudioCtx) beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let osc = beepAudioCtx.createOscillator();
+            let gain = beepAudioCtx.createGain();
+            osc.type = 'square'; osc.frequency.setValueAtTime(800, beepAudioCtx.currentTime);
+            osc.connect(gain); gain.connect(beepAudioCtx.destination);
+            osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, beepAudioCtx.currentTime + 0.5); osc.stop(beepAudioCtx.currentTime + 0.5);
+        }
+
+        function setSystemState(stateClass, badgeText=null, badgeColor=null) {
+            document.body.classList.remove('state-NORMAL', 'state-CRITICAL', 'state-WARNING', 'state-ALERT');
+            document.body.classList.add(`state-${stateClass}`);
+            if(badgeText) {
+                const b = document.getElementById('system-status');
+                b.innerText = badgeText;
+                b.style.color = badgeColor;
+                b.style.borderColor = badgeColor;
+            }
+            if(stateClass === 'CRITICAL' || stateClass === 'ALERT') playBeep();
+            if (stateClass === 'NORMAL') {
+                document.getElementById('system-status').innerText = 'SYSTEM NORMAL';
+                document.getElementById('system-status').style.color = 'var(--status-safe)';
+            }
+        }
+
+        function setVisionMode(mode) {
+            isThermal = (mode === 'thermal');
+            document.getElementById('tab-rgb').classList.remove('active');
+            document.getElementById('tab-thermal').classList.remove('active');
+            document.getElementById('tab-'+mode).classList.add('active');
+            const vw = document.getElementById('video-wrapper');
+            if(isThermal) vw.classList.add('thermal-mode');
+            else vw.classList.remove('thermal-mode');
+        }
+
+        /* ========================================================
+           9. SCENARIO ENGINE TIMELINES
+           ======================================================== */
+        function triggerScenario(id) {
+            clearInterval(scenarioInterval);
+            activeScenario = id;
+            scenarioTick = 0;
+            logEvent("System", `Scenario ${id} Triggered`, "Auto-Running");
+            
+            document.querySelectorAll('.time-step').forEach(el => el.className = 'time-step');
+            document.getElementById('ts-explore').classList.add('active');
+            document.getElementById('ts-explore').previousElementSibling.classList.add('done');
+            document.getElementById('worker-card').style.display = 'none';
+            document.getElementById('target-lock').style.display = 'none';
+            document.getElementById('thermal-badge').style.display = 'none';
+            workerPos = null; commsDegraded = false; rescuePath = [];
+            clearInterval(workerTimer);
+            sysData.ch4 = 0.1; sysData.rssi = -45;
+            setSystemState('NORMAL');
+            document.getElementById('m-action').innerText = '--';
+
+            if (id === 0) { 
+                setVisionMode('rgb');
+                renderMap(); 
+                return; 
+            }
+            scenarioInterval = setInterval(() => stepScenario(id), 100);
+        }
+
+        function stepScenario(id) {
+            scenarioTick++;
+            
+            // 1: GAS LEAK
+            if (id === 1) {
+                if (scenarioTick < 300) sysData.ch4 += (1.8 - 0.1) / 300; 
+                if (scenarioTick === 50) logEvent("Sensor", "Elevated CH4 Detected", "Monitoring");
+                if (scenarioTick === 200) {
+                    setSystemState('WARNING', 'CH4 RISING', 'var(--status-warn)');
+                    logEvent("Sensor", "Warning Threshold Reached", "Alerting Operator");
+                }
+                if (scenarioTick === 300) {
+                    setSystemState('CRITICAL', 'TOXIC GAS LEAK', 'var(--status-crit)');
+                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-hazard').classList.add('active');
+                    document.getElementById('m-action').innerText = 'EVACUATE';
+                    logEvent("Sensor", "CRITICAL GAS LEAK", "INITIATING AUTO-EVACUATE");
+                    clearInterval(scenarioInterval);
+                }
+            }
+
+            // 2: STRUCTURAL
+            if (id === 2) {
+                if (scenarioTick === 20) {
+                    commsDegraded = true;
+                    setSystemState('WARNING', 'STRUC ALRT', 'var(--status-warn)');
+                    document.getElementById('map-wifi').innerText = '[WIFI] -85dBm';
+                    document.getElementById('map-wifi').style.color = 'var(--status-warn)';
+                    document.getElementById('chk-signal').checked = true;
+                    logEvent("Network", "RSSI Dropped < -80dBm", "Flagging Dead Zones");
+                    renderMap();
+                }
+                if (scenarioTick === 50) {
+                    showToast("STRUCTURAL INSTABILITY — CEILING RISK");
+                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-hazard').classList.add('active');
+                    logEvent("AI Mapper", "Seismic anomaly / Ceiling Cracks", "Rerouting required");
+                    
+                    let endPoint = [9, 9];
+                    rescuePath = aStar(roverPos, endPoint);
+                    if(rescuePath.length > 0) logEvent("A*", "Path recalibrated", "Avoiding Structural Hazards");
+                    renderMap();
+                    clearInterval(scenarioInterval);
+                }
+            }
+
+            // 3: WORKER RESCUE
+            if (id === 3) {
+                if(scenarioTick === 10) setVisionMode('thermal');
+                if(scenarioTick > 15) confidence = Math.floor(Math.random() * 8 + 92); 
+                document.getElementById('ai-conf').innerText = confidence + '%';
+
+                if(scenarioTick === 30) {
+                    document.getElementById('thermal-badge').style.display = 'block';
+                    setSystemState('ALERT', 'TARGET ACQUIRED', 'var(--status-info)');
+                    document.getElementById('target-lock').style.display = 'block';
+                    document.getElementById('m-action').innerText = 'HALTED';
+                    logEvent("YOLOv8", "Human Heat Signature", "Locking Target");
+                }
+                if(scenarioTick === 50) {
+                    workerPos = [8, 7]; 
+                    document.getElementById('worker-card').style.display = 'flex';
+                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-worker').classList.add('active');
+                    logEvent("System", "Worker Identified #07", "Awaiting Rescue PIN");
+                    
+                    workerSeconds = 0;
+                    workerTimer = setInterval(()=>{
+                        workerSeconds++;
+                        let m = String(Math.floor(workerSeconds/60)).padStart(2,'0');
+                        let s = String(workerSeconds%60).padStart(2,'0');
+                        document.getElementById('w-time').innerText = `${m}:${s}`;
+                        
+                        if(workerPos) {
+                            let distMeters = (Math.abs(roverPos[0]-workerPos[0]) + Math.abs(roverPos[1]-workerPos[1])) * 2;
+                            document.getElementById('w-dist').innerText = `${distMeters} m`;
+                            document.getElementById('w-gas').innerText = `${sysData.ch4.toFixed(1)}%`;
+                        }
+                    }, 1000);
+                }
+                if(scenarioTick === 90) {
+                    rescuePath = aStar(roverPos, workerPos);
+                    document.getElementById('w-loc').innerText = `GRID I-8`;
+                    
+                    if(rescuePath.length === 0) {
+                        logEvent("A* Pathfinding", "No safe path found!", "REROUTING FAILED");
+                        showToast("PATH BLOCKED BY HAZARDS!");
+                    } else {
+                        rescuePath.pop(); // Stop 1 cell short so rover doesn't cover worker
+                        logEvent("A* Pathfinding", "Safe route calculated", "Displaying on Grid");
+                    }
+                    renderMap();
+                    document.getElementById('ts-worker').classList.replace('active','done');
+                    document.getElementById('ts-rescue').classList.add('active');
+                }
+                if(scenarioTick > 100 && scenarioTick % 10 === 0 && rescuePath.length > 0) {
+                    roverPos = rescuePath.shift();
+                    pastPaths.add(`${roverPos[0]},${roverPos[1]}`);
+                    renderMap();
+                }
+                if(rescuePath.length === 0 && scenarioTick > 110) {
+                    document.getElementById('ts-rescue').classList.replace('active','done');
+                    document.getElementById('ts-return').classList.add('active');
+                    clearInterval(scenarioInterval);
+                }
+            }
+        }
+
+        /* ========================================================
+           10. BASE LOOP & EXPORT
+           ======================================================== */
+        function updateTelemetryTick() {
+            if(activeScenario === 0) {
+                sysData.ch4 = Math.max(0, sysData.ch4 + (Math.random()-0.5)*0.02);
+                sysData.rssi = Math.min(-30, sysData.rssi + (Math.random()-0.5)*2);
+                sysData.temp = 28 + (Math.random()-0.5)*0.5;
+                
+                // Idle patrol auto-move only if no manual input in last 5s
+                if (Date.now() - lastManualMove > 5000) {
+                    let moves = [[0,1], [1,0], [0,-1], [-1,0]];
+                    let validMoves = moves.map(m => [roverPos[0]+m[0], roverPos[1]+m[1]]).filter(p => !isCellBlocked(p[0], p[1]));
+                    if(validMoves.length > 0) {
+                        roverPos = validMoves[Math.floor(Math.random()*validMoves.length)];
+                        pastPaths.add(`${roverPos[0]},${roverPos[1]}`);
+                        renderMap();
+                    }
+                }
+            }
+            
+            sysData.bat = Math.max(0, sysData.bat - 0.01);
+            if(sysData.bat < 20) document.getElementById('map-bat').style.color = 'var(--status-warn)';
+            document.getElementById('map-bat').innerText = `[BAT] ${Math.floor(sysData.bat)}%`;
+            
+            renderGauges();
+            updateChart();
+        }
+
+        function openReportModal() {
+            const modal = document.getElementById('reportModal');
+            const dataArea = document.getElementById('reportData');
+            
+            let rpt = `=======================================\n  POST-INCIDENT MISSION REPORT\n  ID: MINE-RESCUE-${Math.floor(Math.random()*10000)}\n=======================================\n\n`;
+            rpt += `FINAL TELEMETRY:\n- Peak CH4: ${sysData.ch4.toFixed(2)}%\n- Final Battery: ${Math.floor(sysData.bat)}%\n- Last Signal: ${sysData.rssi.toFixed(1)}dBm\n\n`;
+            
+            if(workerPos) rpt += `WORKER RESCUE DETAILS:\n- Worker Located at Grid: [${workerPos[0]}, ${workerPos[1]}]\n- Extraction Path Generated: YES\n\n`;
+
+            rpt += `EVENT LOG:\n`;
+            eventLog.forEach(e => { rpt += `[${e.time}] ${e.msg}\n`; });
+            if(eventLog.length === 0) rpt += "No events logged.\n";
+            
+            dataArea.value = rpt;
+            modal.style.display = 'flex';
+        }
+
+        function downloadReport() {
+            const text = document.getElementById('reportData').value;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+            a.download = `Incident_Report_${Date.now()}.txt`;
+            a.click();
+            document.getElementById('reportModal').style.display='none';
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>

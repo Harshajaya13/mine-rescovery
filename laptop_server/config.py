@@ -11,7 +11,7 @@ RPI_TELEMETRY_PORT = 5007 # Laptop → RPi: subscribe to sensor stream
 
 # ── Hardware ─────────────────────────────────────
 # ESP-CAM stream URL (get IP from ESP-CAM serial monitor after flashing)
-CAMERA_URL = "http://YOUR_ESPCAM_IP:81/stream"
+CAMERA_URL = "http://10.59.164.209:81/stream"
 
 # ── AI/ML ────────────────────────────────────────
 YOLO_MODEL_PATH      = "yolov8n.pt"   # Auto-downloads on first run (~6MB)
