@@ -5,317 +5,248 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mine Rescue Rover - Mission Control</title>
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
     <!-- Chart.js & Socket.io -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-base: #09090b;
-            --panel-bg: #18181b;
-            --border-color: rgba(255, 255, 255, 0.1);
+            --bg-base: #000000;
+            --panel-bg: rgba(28, 28, 30, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
             --accent-main: #f97316;
-            --accent-hover: #ea580c;
-            --text-main: #fafafa;
-            --text-muted: #a1a1aa;
+            --text-main: #f5f5f7;
+            --text-muted: #86868b;
             
-            --status-safe: #22c55e;
-            --status-warn: #f59e0b;
-            --status-crit: #ef4444;
-            --status-info: #3b82f6;
+            /* Apple System Colors */
+            --status-safe: #32d74b;
+            --status-warn: #ffd60a;
+            --status-crit: #ff453a;
+            --status-info: #0a84ff;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-base);
+            /* Deep, ambient mesh gradient for a premium feel */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(249, 115, 22, 0.08), transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(10, 132, 255, 0.08), transparent 40%);
             color: var(--text-main);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            transition: filter 0.3s, transform 0.1s;
+            -webkit-font-smoothing: antialiased;
         }
 
         /* VIGNETTE AND SHAKE EFFECTS */
         body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            pointer-events: none;
-            background: radial-gradient(circle, transparent 50%, rgba(239, 68, 68, 0) 100%);
-            transition: all 0.5s ease;
-            z-index: 9999;
-            opacity: 0;
+            content: ''; position: fixed; inset: 0; pointer-events: none;
+            background: radial-gradient(circle, transparent 50%, rgba(255, 69, 58, 0) 100%);
+            transition: all 0.5s cubic-bezier(0.25, 1, 0.5, 1); z-index: 9999; opacity: 0;
         }
 
-        body.state-CRITICAL::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(239, 68, 68, 0.4) 100%); }
-        body.state-WARNING::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(245, 158, 11, 0.3) 100%); }
-        body.state-ALERT::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(59, 130, 246, 0.3) 100%); }
+        body.state-CRITICAL::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(255, 69, 58, 0.3) 100%); }
+        body.state-WARNING::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(255, 214, 10, 0.2) 100%); }
+        body.state-ALERT::after { opacity: 1; background: radial-gradient(circle, transparent 40%, rgba(10, 132, 255, 0.2) 100%); }
 
         @keyframes screen-shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            20% { transform: translate(-3px, 0px) rotate(1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            40% { transform: translate(1px, -1px) rotate(1deg); }
-            50% { transform: translate(-1px, 2px) rotate(-1deg); }
-            60% { transform: translate(-3px, 1px) rotate(0deg); }
-            70% { transform: translate(3px, 1px) rotate(-1deg); }
-            80% { transform: translate(-1px, -1px) rotate(1deg); }
-            90% { transform: translate(1px, 2px) rotate(0deg); }
-            100% { transform: translate(1px, -2px) rotate(-1deg); }
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-2px, -2px) rotate(-1deg); }
+            20%, 40%, 60%, 80% { transform: translate(2px, 2px) rotate(1deg); }
         }
+        body.shaking { animation: screen-shake 0.5s cubic-bezier(0.36,0.07,0.19,0.97) both; }
 
-        body.shaking { animation: screen-shake 0.5s; }
+        /* TICKER */
+        .ticker-wrap {
+            width: 100%; overflow: hidden; background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 6px 0; border-bottom: 1px solid var(--border-color); white-space: nowrap;
+        }
+        .ticker {
+            display: inline-block; white-space: nowrap; font-family: 'Inter', sans-serif;
+            font-weight: 500; font-size: 0.75rem; letter-spacing: 0.05em; color: var(--text-muted);
+            animation: ticker-scroll 25s linear infinite;
+        }
+        @keyframes ticker-scroll { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
 
-        /* HEADER & TICKER */
+        /* HEADER */
         header {
-            background: var(--panel-bg);
+            background: rgba(10, 10, 12, 0.6);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
             border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.8rem 2rem;
-            z-index: 100;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 1rem 2rem; z-index: 100;
         }
         
         header h1 {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.2rem;
-            font-weight: 800;
-            color: var(--text-main);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .ticker-wrap {
-            width: 100%;
-            overflow: hidden;
-            background: #000;
-            padding: 4px 0;
-            border-bottom: 1px solid var(--border-color);
-            white-space: nowrap;
-        }
-
-        .ticker {
-            display: inline-block;
-            white-space: nowrap;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            font-size: 0.8rem;
-            color: var(--accent-main);
-            animation: ticker-scroll 25s linear infinite;
-        }
-
-        @keyframes ticker-scroll {
-            0% { transform: translateX(100vw); }
-            100% { transform: translateX(-100%); }
+            font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em;
+            color: var(--text-main); display: flex; align-items: center; gap: 10px;
         }
 
         .status-badge {
-            padding: 0.4rem 1rem;
-            border-radius: 4px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            border: 1px solid transparent;
-            transition: all 0.3s;
+            padding: 0.4rem 1.2rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.3s ease;
         }
 
         /* LAYOUT */
         .dashboard {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 1rem;
-            padding: 1rem;
-            height: calc(100vh - 85px);
-            overflow-y: auto;
+            display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem;
+            padding: 1.5rem; height: calc(100vh - 90px); overflow-y: auto;
         }
+        .col-left, .col-right { display: flex; flex-direction: column; gap: 1.5rem; }
 
-        .col-left, .col-right {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
+        /* GLASSMORPHIC PANELS */
         .panel {
             background: var(--panel-bg);
+            backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-            position: relative;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
 
         .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.5rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.8rem; margin-bottom: 0.5rem;
         }
+        h2 { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
 
-        h2 {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 0;
+        /* BUTTONS */
+        button, .export-btn, .btn-scenario {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.05);
+            color: var(--text-main); border-radius: 12px; font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
         }
+        button:hover { background: rgba(255,255,255,0.15); transform: translateY(-1px); }
+        
+        .export-btn {
+            background: var(--text-main); color: #000; font-weight: 600; padding: 8px 18px; border-radius: 20px; font-size: 0.8rem; border: none;
+        }
+        .export-btn:hover { background: #fff; transform: scale(1.02); }
 
-        /* PANEL A: DUAL VISION */
-        .vision-tabs { display: flex; gap: 10px; }
+        .btn-scenario { padding: 10px; font-size: 0.75rem; font-weight: 600; }
+        
+        .btn-toggle { padding: 6px 12px; font-weight: 600; font-size: 0.75rem; border-radius: 14px; }
+        .btn-toggle.active { background: var(--accent-main); color: #fff; border: none; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3); }
+
+        /* VISION HUB */
+        .vision-tabs { display: flex; gap: 8px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 12px; }
         .vision-tab {
-            background: transparent; color: var(--text-muted); border: 1px solid transparent;
-            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 4px 8px; cursor: pointer; border-radius: 4px;
+            background: transparent; border: none; color: var(--text-muted); font-size: 0.7rem; font-weight: 600;
+            padding: 6px 14px; border-radius: 8px;
         }
-        .vision-tab.active { background: rgba(255,255,255,0.1); color: var(--text-main); border-color: var(--border-color); }
+        .vision-tab.active { background: rgba(255,255,255,0.15); color: var(--text-main); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
         .video-wrapper {
             position: relative; width: 100%; aspect-ratio: 16/9; background: #000;
-            border-radius: 6px; overflow: hidden; border: 2px solid var(--border-color);
+            border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
+        canvas#video-feed { width: 100%; height: 100%; object-fit: cover; transition: filter 0.5s ease; }
+        .video-wrapper.thermal-mode canvas { filter: grayscale(100%) contrast(150%) hue-rotate(180deg) invert(100%) sepia(100%) saturate(500%) hue-rotate(280deg); }
 
-        canvas#video-feed { width: 100%; height: 100%; object-fit: cover; transition: filter 0.3s; }
-
-        /* Thermal Mode CSS Tricks */
-        .video-wrapper.thermal-mode canvas {
-            filter: grayscale(100%) contrast(150%) hue-rotate(180deg) invert(100%) sepia(100%) saturate(500%) hue-rotate(280deg);
-        }
-
-        .thermal-legend {
-            display: none; position: absolute; right: 10px; top: 50px; width: 15px; height: 150px;
-            background: linear-gradient(to top, blue, cyan, yellow, red); border: 1px solid white; border-radius: 4px;
-        }
-        .video-wrapper.thermal-mode .thermal-legend { display: block; }
-
-        .hud-overlay {
-            position: absolute; inset: 0; pointer-events: none; padding: 10px; display: flex; flex-direction: column; justify-content: space-between;
-        }
-
+        /* OVERLAYS */
+        .hud-overlay { position: absolute; inset: 0; pointer-events: none; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
+        
         .hud-toast {
-            display: none; align-self: center; margin: auto; border: 2px solid var(--status-crit); padding: 10px 20px;
-            background: rgba(239, 68, 68, 0.2); backdrop-filter: blur(2px); font-family: 'JetBrains Mono', monospace;
-            font-weight: 800; font-size: 1rem; color: var(--status-crit); animation: pulse-toast 1s infinite alternate;
+            display: none; align-self: center; margin: auto; padding: 12px 24px; border-radius: 12px;
+            background: rgba(255, 69, 58, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 69, 58, 0.5); font-weight: 700; font-size: 0.9rem; color: var(--status-crit);
+            animation: float-toast 2s infinite alternate ease-in-out;
         }
-
+        
         .target-lock {
-            display: none; align-self: center; margin: auto; border: 2px dashed var(--status-crit); padding: 15px 30px;
-            background: rgba(239, 68, 68, 0.15); backdrop-filter: blur(2px); animation: pulse-lock 1s infinite alternate;
+            display: none; align-self: center; margin: auto; border: 2px dashed rgba(255, 69, 58, 0.8);
+            border-radius: 16px; padding: 20px 40px; background: rgba(255, 69, 58, 0.1); backdrop-filter: blur(4px);
+            animation: pulse-lock 1.5s infinite alternate ease-in-out;
         }
+        .target-lock-text { font-weight: 800; font-size: 1.2rem; color: var(--status-crit); letter-spacing: 0.05em; }
 
-        .target-lock-text {
-            font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 1.2rem;
-            color: var(--status-crit); text-shadow: 0 0 10px var(--status-crit);
-        }
+        @keyframes float-toast { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+        @keyframes pulse-lock { from { transform: scale(1); box-shadow: 0 0 0px rgba(255,69,58,0); } to { transform: scale(1.02); box-shadow: 0 0 30px rgba(255,69,58,0.4); } }
 
-        @keyframes pulse-toast { from { transform: scale(1); } to { transform: scale(1.05); } }
-        @keyframes pulse-lock { from { transform: scale(1); box-shadow: 0 0 0px var(--status-crit); } to { transform: scale(1.05); box-shadow: 0 0 20px var(--status-crit); } }
+        .confidence-meter { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); display: flex; justify-content: space-between; padding: 0 5px; }
 
-        .confidence-meter { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent-main); display: flex; justify-content: space-between; }
-
-        /* PANEL B: ENVIRONMENTAL BAY */
-        .gauges-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 10px 0; }
-        .gauge { display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
-        .gauge-svg { width: 100%; max-width: 80px; }
-        .gauge-val { position: absolute; top: 40%; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; }
-        .gauge-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 700; }
+        /* ENVIRONMENTAL GAUGES */
+        .gauges-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; padding: 5px 0; }
+        .gauge { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; }
+        .gauge-svg { width: 100%; max-width: 80px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+        .gauge-val { position: absolute; top: 38%; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.9rem; letter-spacing: -0.05em; }
+        .gauge-label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; }
         
-        /* PANEL C: WORKER TRACKER */
+        /* WORKER CARD */
         .worker-card {
-            background: rgba(59, 130, 246, 0.1); border-color: var(--status-info);
-            display: none; animation: slideIn 0.5s ease-out;
+            background: linear-gradient(135deg, rgba(10, 132, 255, 0.15) 0%, rgba(0,0,0,0) 100%);
+            border: 1px solid rgba(10, 132, 255, 0.3); display: none; animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-        /* PANEL D: MAP UPGRADES */
-        .map-header-icons { display: flex; gap: 15px; font-size: 0.75rem; font-family: 'JetBrains Mono', monospace; }
+        /* MAP */
+        .map-header-icons { display: flex; gap: 15px; font-size: 0.75rem; font-weight: 600; }
         .mine-map {
-            display: grid; gap: 2px; background: rgba(255,255,255,0.05); padding: 2px;
-            border-radius: 4px; width: 100%; aspect-ratio: 1; position: relative;
+            display: grid; gap: 4px; background: rgba(0,0,0,0.4); padding: 6px;
+            border-radius: 16px; width: 100%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.03);
         }
+        .map-cell { background: rgba(255,255,255,0.02); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; transition: all 0.3s ease; }
+        .cell-safe { background: rgba(50, 215, 75, 0.05); }
+        .cell-hazard { background: rgba(255, 69, 58, 0.15); border: 1px solid rgba(255,69,58,0.3); }
+        .cell-exit { background: rgba(50, 215, 75, 0.2); border: 1px solid var(--status-safe); font-size: 0.5rem; font-weight: 700; color: var(--status-safe); }
+        .cell-path { background: rgba(255,255,255,0.15); }
+        .cell-astar-path { background: rgba(249, 115, 22, 0.2); border: 1px solid var(--accent-main); animation: pulse-route 1.5s infinite ease-in-out; }
+        @keyframes pulse-route { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-        .map-cell { background: var(--bg-base); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; position: relative; transition: 0.2s; }
-        .cell-safe { background: rgba(34, 197, 94, 0.05); }
-        .cell-hazard { background: rgba(239, 68, 68, 0.2); }
-        .cell-exit { background: rgba(34, 197, 94, 0.4); border: 1px solid var(--status-safe); font-size: 0.5rem; font-family: monospace; color: var(--status-safe); }
-        .cell-path { background: rgba(255,255,255,0.1); }
+        .cell-rover { background: var(--accent-main); color: #000; font-weight: 800; border-radius: 50%; box-shadow: 0 0 15px rgba(249, 115, 22, 0.5); z-index: 10; }
+        .cell-worker { background: var(--status-info); color: #fff; font-weight: 700; border-radius: 50%; box-shadow: 0 0 20px rgba(10, 132, 255, 0.8); animation: pulse-worker 1.5s infinite alternate ease-in-out; z-index: 5; }
+        @keyframes pulse-worker { from { transform: scale(0.85); } to { transform: scale(1.1); } }
         
-        .cell-astar-path {
-            background: rgba(249, 115, 22, 0.3); border: 1px dashed var(--accent-main);
-            animation: pulse-route 1.5s infinite;
-        }
-        @keyframes pulse-route { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-
-        .cell-rover { background: var(--accent-main); color: #000; font-weight: 800; border-radius: 50%; transition: 0.3s; z-index: 10; }
-        .cell-worker {
-            background: var(--status-info); color: #fff; border-radius: 50%;
-            box-shadow: 0 0 15px var(--status-info); animation: pulse-worker 1s infinite alternate; z-index: 5;
-        }
-        @keyframes pulse-worker { from { transform: scale(0.8); } to { transform: scale(1.1); } }
-        
-        .cell-crack::after { content: '[WARN]'; position: absolute; font-size: 0.5rem; font-family: monospace; color: var(--status-warn); }
-
-        .signal-degraded .map-cell { opacity: 0.4; }
-        .signal-degraded .cell-rover { opacity: 1; }
-        .signal-degraded .cell-worker { opacity: 1; }
+        .cell-crack::after { content: '[WARN]'; position: absolute; font-size: 0.45rem; font-weight: 700; color: var(--status-warn); }
+        .signal-degraded .map-cell { opacity: 0.3; }
+        .signal-degraded .cell-rover, .signal-degraded .cell-worker { opacity: 1; }
 
         /* SCENARIO & CONTROLS */
         .scenario-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        .btn-scenario {
-            background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted);
-            padding: 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-family: 'JetBrains Mono', monospace; font-weight: 700;
-        }
-        .btn-scenario:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
-        .btn-toggle { background: var(--bg-base); border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.75rem; }
-        .btn-toggle.active { background: var(--accent-main); color: #fff; border-color: var(--accent-hover); }
+        .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .controls-grid button { padding: 16px; font-weight: 600; font-size: 1rem; border-radius: 14px; }
+        .btn-stop { background: rgba(255,69,58,0.15) !important; color: var(--status-crit) !important; border-color: rgba(255,69,58,0.3) !important;}
 
         /* TIMELINE */
-        .timeline { display: flex; flex-direction: column; gap: 15px; padding-left: 10px; border-left: 2px solid var(--border-color); margin-top: 10px; }
-        .time-step { position: relative; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
-        .time-step::before { content: ''; position: absolute; left: -15px; top: 2px; width: 8px; height: 8px; border-radius: 50%; background: var(--panel-bg); border: 2px solid var(--border-color); }
-        .time-step.active { color: var(--text-main); }
-        .time-step.active::before { background: var(--accent-main); border-color: var(--accent-main); box-shadow: 0 0 10px var(--accent-main); }
+        .timeline { display: flex; flex-direction: column; gap: 20px; padding-left: 12px; border-left: 2px solid rgba(255,255,255,0.05); margin-top: 10px; }
+        .time-step { position: relative; font-size: 0.8rem; color: var(--text-muted); font-weight: 500; transition: color 0.3s; }
+        .time-step::before { content: ''; position: absolute; left: -17px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: #1c1c1e; border: 2px solid var(--border-color); transition: all 0.3s; }
+        .time-step.active { color: var(--text-main); font-weight: 600; }
+        .time-step.active::before { background: var(--accent-main); border-color: var(--accent-main); box-shadow: 0 0 12px rgba(249, 115, 22, 0.6); }
         .time-step.done { color: var(--status-safe); }
         .time-step.done::before { background: var(--status-safe); border-color: var(--status-safe); }
         
-        .export-btn { background: var(--text-main); color: var(--bg-base); font-weight: 800; border: none; padding: 6px 15px; border-radius: 4px; cursor: pointer; font-family: 'Inter', sans-serif; font-size: 0.8rem; transition: 0.2s; }
-        .export-btn:hover { background: var(--text-muted); color: #000; }
-
-        .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
-        .controls-grid button { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; padding: 15px; border-radius: 4px; font-weight: 700; cursor: pointer; }
-        .controls-grid button:active { background: var(--accent-main); }
-        .btn-stop { background: rgba(239,68,68,0.2) !important; color: var(--status-crit) !important; border-color: var(--status-crit) !important;}
-        
-        .events-table-wrapper { max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-base); }
+        /* TABLE & LOGS */
+        .events-table-wrapper { max-height: 160px; overflow-y: auto; border-radius: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); }
         table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-        th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-        th { background: rgba(255,255,255,0.02); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; }
+        th, td { padding: 0.8rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        th { background: rgba(255,255,255,0.02); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; backdrop-filter: blur(10px); }
         td { color: var(--text-main); }
         td.highlight-detected { color: var(--accent-main); font-weight: 600; }
 
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: var(--panel-bg); padding: 2rem; border-radius: 8px; border: 1px solid var(--border-color); max-width: 500px; width: 100%; }
-        .modal textarea { width: 100%; height: 250px; background: #000; color: #fff; font-family: monospace; font-size: 0.75rem; padding: 10px; border: 1px solid var(--border-color); margin: 15px 0; }
+        /* MODAL */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(20px); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: var(--panel-bg); padding: 2.5rem; border-radius: 24px; border: 1px solid var(--border-color); max-width: 550px; width: 100%; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+        .modal textarea { width: 100%; height: 250px; background: rgba(0,0,0,0.3); color: var(--text-main); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 15px; border: 1px solid rgba(255,255,255,0.1); margin: 20px 0; outline: none; }
+
+        /* CHECKBOXES (Apple style) */
+        input[type="checkbox"] { appearance: none; width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--text-muted); background: transparent; cursor: pointer; position: relative; top: 3px; margin-right: 4px; }
+        input[type="checkbox"]:checked { background: var(--accent-main); border-color: var(--accent-main); }
 
         @media (max-width: 900px) {
             body { overflow-y: auto; height: auto; }
             .dashboard { grid-template-columns: 1fr; height: auto; overflow: visible; }
             .col-left, .col-right { width: 100%; }
             .gauges-container { grid-template-columns: repeat(3, 1fr); }
-            header { flex-direction: column; gap: 10px; padding: 10px; }
-            .header-controls { flex-wrap: wrap; justify-content: center; }
+            header { flex-direction: column; gap: 15px; padding: 15px; }
+            .header-controls { flex-wrap: wrap; justify-content: center; gap: 10px; }
             .mine-map { max-width: 500px; margin: 0 auto; }
-            .controls-grid button { padding: 20px; font-size: 1.2rem; }
         }
     </style>
 </head>
@@ -327,11 +258,11 @@
 
     <header>
         <h1><span style="color:var(--accent-main)">SYS.OP</span> SURFACE CONTROL</h1>
-        <div class="header-controls">
-            <label style="font-size:0.75rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="audio-toggle"> [AUDIO] Alert</label>
+        <div class="header-controls" style="display:flex; align-items:center; gap:15px;">
+            <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;"><input type="checkbox" id="audio-toggle"> [AUDIO]</label>
             <button class="btn-toggle active" id="btn-mode-toggle" onclick="toggleAutoMode()">MANUAL MODE</button>
-            <button class="export-btn" onclick="openReportModal()">EXPORT INCIDENT</button>
-            <div class="status-badge" id="system-status" style="background: rgba(34,197,94,0.1); color: var(--status-safe); border-color: var(--status-safe);">SYSTEM NORMAL</div>
+            <button class="export-btn" onclick="openReportModal()">Export Data</button>
+            <div class="status-badge" id="system-status" style="background: rgba(50,215,75,0.15); color: var(--status-safe);">SYSTEM NORMAL</div>
         </div>
     </header>
 
@@ -345,17 +276,17 @@
                 <div class="panel-header">
                     <h2>Live Vision Hub</h2>
                     <div class="vision-tabs">
-                        <button class="vision-tab active" onclick="setVisionMode('rgb')" id="tab-rgb">RGB // YOLOv8</button>
-                        <button class="vision-tab" onclick="setVisionMode('thermal')" id="tab-thermal">THERMAL</button>
+                        <button class="vision-tab active" onclick="setVisionMode('rgb')" id="tab-rgb">RGB / YOLOv8</button>
+                        <button class="vision-tab" onclick="setVisionMode('thermal')" id="tab-thermal">Thermal</button>
                     </div>
                 </div>
                 <div class="video-wrapper" id="video-wrapper">
+                    <img id="real-video-feed" src="/video_feed" style="display:none; width:100%; height:100%; object-fit:cover; transform: rotate(180deg);" alt="Live Camera Stream">
                     <canvas id="video-feed"></canvas>
-                    <div class="thermal-legend"></div>
                     <div class="hud-overlay">
                         <div class="hud-top">
-                            <span style="background:rgba(0,0,0,0.5); padding:2px 5px; font-family:monospace; font-size:0.7rem; border:1px solid #fff;">REC</span>
-                            <span id="thermal-badge" style="display:none; background:var(--status-crit); color:#fff; padding:2px 5px; font-family:monospace; font-size:0.7rem;">HEAT SIGNATURE 36.4°C</span>
+                            <span style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">REC</span>
+                            <span id="thermal-badge" style="display:none; background:var(--status-crit); color:#fff; padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">HEAT 36.4°C</span>
                         </div>
                         <div class="hud-toast" id="hud-toast">PATH BLOCKED BY HAZARDS!</div>
                         <div class="target-lock" id="target-lock">
@@ -364,48 +295,45 @@
                     </div>
                 </div>
                 <div class="confidence-meter">
-                    <span>AI CONFIDENCE</span>
+                    <span>AI Detection Confidence</span>
                     <span id="ai-conf">--%</span>
                 </div>
             </div>
 
             <!-- PANEL B: ENVIRONMENTAL BAY -->
             <div class="panel">
-                <div class="panel-header"><h2>Environmental Bay</h2></div>
+                <div class="panel-header"><h2>Environmental Telemetry</h2></div>
                 <div class="gauges-container" id="gauges-container"></div>
             </div>
             
             <!-- REAL METRIC CARDS -->
-            <div class="panel">
-                <div class="panel-header"><h2>Core Telemetry</h2></div>
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
-                    <div class="panel" style="padding:10px; align-items:center;">
-                        <span style="font-size:0.6rem; color:var(--text-muted)">DISTANCE</span>
-                        <span style="font-family:'JetBrains Mono'; font-weight:700;" id="m-dist">-- cm</span>
-                    </div>
-                    <div class="panel" style="padding:10px; align-items:center;">
-                        <span style="font-size:0.6rem; color:var(--text-muted)">RSSI</span>
-                        <span style="font-family:'JetBrains Mono'; font-weight:700;" id="m-rssi">-- dBm</span>
-                    </div>
-                    <div class="panel" style="padding:10px; align-items:center;">
-                        <span style="font-size:0.6rem; color:var(--text-muted)">AI ACTION</span>
-                        <span style="font-family:'JetBrains Mono'; font-weight:700; color:var(--accent-main);" id="m-action">--</span>
-                    </div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <div class="panel" style="padding:15px; align-items:center; gap:5px;">
+                    <span style="font-size:0.65rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em;">DISTANCE</span>
+                    <span style="font-family:'JetBrains Mono'; font-size:1.2rem; font-weight:700;" id="m-dist">-- cm</span>
+                </div>
+                <div class="panel" style="padding:15px; align-items:center; gap:5px;">
+                    <span style="font-size:0.65rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em;">NETWORK</span>
+                    <span style="font-family:'JetBrains Mono'; font-size:1.2rem; font-weight:700;" id="m-rssi">-- dBm</span>
+                </div>
+                <div class="panel" style="padding:15px; align-items:center; gap:5px;">
+                    <span style="font-size:0.65rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em;">AI DECISION</span>
+                    <span style="font-family:'Inter'; font-size:1.1rem; font-weight:700; color:var(--accent-main);" id="m-action">--</span>
                 </div>
             </div>
 
             <!-- HISTORY CHART -->
             <div class="panel">
-                <div class="panel-header"><h2>Telemetry History</h2></div>
+                <div class="panel-header"><h2>Atmospheric History</h2></div>
                 <div style="height: 120px;"><canvas id="historyChart"></canvas></div>
             </div>
 
             <!-- AI LOG TABLE -->
             <div class="panel">
-                <div class="panel-header"><h2>AI Detection & Action Log</h2></div>
+                <div class="panel-header"><h2>Event Log</h2></div>
                 <div class="events-table-wrapper">
                     <table>
-                        <thead><tr><th>TIME</th><th>TRIGGER</th><th>DETECTED</th><th>AI DECISION</th></tr></thead>
+                        <thead><tr><th>TIME</th><th>SYSTEM</th><th>EVENT</th><th>ACTION</th></tr></thead>
                         <tbody id="events-table-body"></tbody>
                     </table>
                 </div>
@@ -418,27 +346,27 @@
             
             <!-- PANEL E: DEMO SCENARIO ENGINE -->
             <div class="panel">
-                <div class="panel-header"><h2>Simulation Engine</h2></div>
+                <div class="panel-header"><h2>Mission Scenarios</h2></div>
                 <div class="scenario-grid">
-                    <button class="btn-scenario" onclick="triggerScenario(1)">[1] GAS LEAK</button>
-                    <button class="btn-scenario" onclick="triggerScenario(2)">[2] STRUC ALRT</button>
-                    <button class="btn-scenario" onclick="triggerScenario(3)">[3] WORKER RES</button>
-                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px; margin-left:10px;"><input type="checkbox" id="chk-sim" checked onchange="toggleSimMode()"> MOCK_DATA</label>
+                    <button class="btn-scenario" onclick="triggerScenario(1)">[1] Gas Leak</button>
+                    <button class="btn-scenario" onclick="triggerScenario(2)">[2] Structure</button>
+                    <button class="btn-scenario" onclick="triggerScenario(3)">[3] Rescue</button>
+                    <label style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:5px;"><input type="checkbox" id="chk-sim" checked onchange="toggleSimMode()"> Sim Mode</label>
                 </div>
-                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px; text-align:center;">Press ESC to Reset Normal</div>
+                <div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px; text-align:center;">Press ESC to Reset</div>
             </div>
 
             <!-- PANEL C: WORKER TRACKER -->
             <div class="panel worker-card" id="worker-card">
-                <div class="panel-header" style="border-bottom:none;">
-                    <h2 style="color:var(--status-info)">WORKER #07 LOCATED</h2>
-                    <span style="font-size:0.7rem; background:var(--status-warn); color:#000; padding:2px 5px; border-radius:3px;">UNRESPONSIVE</span>
+                <div class="panel-header" style="border-bottom:none; margin-bottom:0;">
+                    <h2 style="color:var(--status-info); font-size:0.9rem;">Worker #07 Located</h2>
+                    <span style="font-size:0.65rem; background:var(--status-warn); color:#000; padding:4px 8px; border-radius:10px; font-weight:700;">UNRESPONSIVE</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-family:'JetBrains Mono'; font-size:0.8rem;">
-                    <div>Distance: <span id="w-dist" style="color:#fff; font-weight:bold;">-- m</span></div>
-                    <div>Location: <span id="w-loc" style="color:#fff; font-weight:bold;">--</span></div>
-                    <div>Local CH4: <span id="w-gas" style="color:var(--status-crit); font-weight:bold;">--%</span></div>
-                    <div>Time since loc: <span id="w-time" style="color:#fff; font-weight:bold;">00:00</span></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.8rem; color:var(--text-muted); margin-top:10px;">
+                    <div>Distance: <span id="w-dist" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">-- m</span></div>
+                    <div>Location: <span id="w-loc" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">--</span></div>
+                    <div>Local CH4: <span id="w-gas" style="color:var(--status-crit); font-weight:600; font-family:'JetBrains Mono';">--%</span></div>
+                    <div>Time Elapsed: <span id="w-time" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">00:00</span></div>
                 </div>
             </div>
 
@@ -452,9 +380,9 @@
                     </div>
                 </div>
                 <div class="mine-map" id="mine-map"></div>
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal" onchange="renderMap()"> Dim Low Signal</label>
-                    <label style="font-size:0.7rem; display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat" onchange="renderMap()"> Risk Heatmap</label>
+                <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
+                    <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal" onchange="renderMap()"> Map Signal Drops</label>
+                    <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat" onchange="renderMap()"> Overlay Risk Heatmap</label>
                 </div>
             </div>
 
@@ -474,12 +402,12 @@
             <div class="panel">
                 <div class="panel-header"><h2>Mission Timeline</h2></div>
                 <div class="timeline" id="mission-timeline">
-                    <div class="time-step done">DEPLOYED</div>
-                    <div class="time-step active" id="ts-explore">EXPLORING</div>
-                    <div class="time-step" id="ts-hazard">HAZARD DETECTED</div>
-                    <div class="time-step" id="ts-worker">WORKER LOCATED</div>
-                    <div class="time-step" id="ts-rescue">RESCUE ROUTE SET</div>
-                    <div class="time-step" id="ts-return">RETURNING</div>
+                    <div class="time-step done">Deployed</div>
+                    <div class="time-step active" id="ts-explore">Exploring Sector</div>
+                    <div class="time-step" id="ts-hazard">Hazard Detected</div>
+                    <div class="time-step" id="ts-worker">Worker Located</div>
+                    <div class="time-step" id="ts-rescue">Rescue Route Set</div>
+                    <div class="time-step" id="ts-return">Returning to Base</div>
                 </div>
             </div>
 
@@ -489,11 +417,12 @@
     <!-- PANEL G: MODAL -->
     <div class="modal" id="reportModal">
         <div class="modal-content">
-            <h2>Post-Incident Report Ready</h2>
+            <h2 style="font-size: 1.2rem; color:var(--text-main); margin-bottom:0.5rem;">Incident Report Ready</h2>
+            <p style="font-size: 0.85rem; color:var(--text-muted); margin-bottom: 1rem;">The system has logged all critical telemetry for investigation.</p>
             <textarea id="reportData" readonly></textarea>
             <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button class="btn-scenario" onclick="document.getElementById('reportModal').style.display='none'">DISMISS</button>
-                <button class="export-btn" onclick="downloadReport()">DOWNLOAD .TXT</button>
+                <button style="padding:10px 20px;" onclick="document.getElementById('reportModal').style.display='none'">Dismiss</button>
+                <button class="export-btn" onclick="downloadReport()">Download .TXT</button>
             </div>
         </div>
     </div>
@@ -556,6 +485,14 @@
         function toggleSimMode() {
             SIM_MODE = document.getElementById('chk-sim').checked;
             logEvent("System", SIM_MODE ? "Switched to Local MOCK Engine" : "Switched to Live HARDWARE Telemetry", "INFO");
+            
+            if (SIM_MODE) {
+                document.getElementById('video-feed').style.display = 'block';
+                document.getElementById('real-video-feed').style.display = 'none';
+            } else {
+                document.getElementById('video-feed').style.display = 'none';
+                document.getElementById('real-video-feed').style.display = 'block';
+            }
         }
 
         /* ========================================================
@@ -670,12 +607,12 @@
             let h = vCanvas.height;
             
             let grd = vCtx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w);
-            grd.addColorStop(0, "#333");
+            grd.addColorStop(0, "#1c1c1e");
             grd.addColorStop(1, "#000");
             vCtx.fillStyle = grd;
             vCtx.fillRect(0, 0, w, h);
             
-            vCtx.strokeStyle = "rgba(255,255,255,0.05)";
+            vCtx.strokeStyle = "rgba(255,255,255,0.03)";
             vPhase += 2;
             for(let i=0; i<w; i+=40) {
                 vCtx.beginPath(); vCtx.moveTo(i, 0); vCtx.lineTo(i - (vPhase%40), h); vCtx.stroke();
@@ -694,12 +631,12 @@
             // AI Bounding Box
             if(activeScenario === 3 && scenarioTick > 20 && !isThermal) {
                 aiBoxAlpha = Math.min(1, aiBoxAlpha + 0.05);
-                vCtx.strokeStyle = `rgba(239, 68, 68, ${aiBoxAlpha})`;
+                vCtx.strokeStyle = `rgba(255, 69, 58, ${aiBoxAlpha})`;
                 vCtx.lineWidth = 3;
                 vCtx.strokeRect(w/2 - 50, h/2 - 80, 100, 160);
-                vCtx.fillStyle = `rgba(239, 68, 68, ${aiBoxAlpha})`;
-                vCtx.font = "16px monospace";
-                vCtx.fillText(`PERSON ${confidence}%`, w/2 - 50, h/2 - 85);
+                vCtx.fillStyle = `rgba(255, 69, 58, ${aiBoxAlpha})`;
+                vCtx.font = "14px 'JetBrains Mono'";
+                vCtx.fillText(`PERSON ${confidence}%`, w/2 - 50, h/2 - 90);
             } else { aiBoxAlpha = 0; }
             
             requestAnimationFrame(drawProceduralVideo);
@@ -717,7 +654,7 @@
                 let pct = Math.max(0, Math.min(1, val / g.max));
                 if(g.id==='o2') pct = val/g.max;
 
-                let strokeColor = '#fff'; 
+                let strokeColor = 'var(--text-main)'; 
                 if (g.crit && val > g.crit) strokeColor = 'var(--status-crit)';
                 if (g.critLow && val < g.critLow) strokeColor = 'var(--status-warn)';
                 
@@ -728,7 +665,7 @@
                 g.zones.forEach(z => {
                     let len = (z.pct - startPct) * arcTotal;
                     let off = startPct * arcTotal;
-                    bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.3" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
+                    bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.25" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
                     startPct = z.pct;
                 });
                 
@@ -736,7 +673,7 @@
                     <div class="gauge">
                         <svg class="gauge-svg" viewBox="0 0 100 50">
                             ${bgHtml}
-                            <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${strokeColor}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${pct * arcTotal}, 200" style="transition:0.5s"/>
+                            <path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${strokeColor}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${pct * arcTotal}, 200" style="transition:0.5s cubic-bezier(0.25, 1, 0.5, 1);"/>
                         </svg>
                         <div class="gauge-val" style="color:${strokeColor}">${val.toFixed(1)}</div>
                         <div class="gauge-label">${g.label}</div>
@@ -745,7 +682,7 @@
             });
             
             document.getElementById('header-ticker').innerText = 
-                `STATUS: ${activeScenario===0?'NOMINAL':'EMERGENCY'} | CH4: ${sysData.ch4.toFixed(2)}% | CO: ${sysData.co.toFixed(0)}ppm | O2: ${sysData.o2.toFixed(1)}% | TEMP: ${sysData.temp.toFixed(1)}°C | HUM: ${sysData.hum.toFixed(0)}% | RSSI: ${sysData.rssi.toFixed(1)}dBm | BAT: ${sysData.bat.toFixed(0)}%`;
+                `STATUS: ${activeScenario===0?'NOMINAL':'EMERGENCY'} // CH4: ${sysData.ch4.toFixed(2)}% // CO: ${sysData.co.toFixed(0)}ppm // O2: ${sysData.o2.toFixed(1)}% // TEMP: ${sysData.temp.toFixed(1)}°C // HUM: ${sysData.hum.toFixed(0)}% // RSSI: ${sysData.rssi.toFixed(1)}dBm // BAT: ${sysData.bat.toFixed(0)}%`;
             
             if(SIM_MODE) {
                 document.getElementById('m-dist').innerText = sysData.dist.toFixed(1) + ' cm';
@@ -754,12 +691,12 @@
         }
 
         function logEvent(trigger, detected, action) {
-            const timeNow = new Date().toLocaleTimeString();
+            const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             eventLog.push({time: timeNow, msg: `[${trigger}] ${detected} -> ${action}`});
             
             const tbody = document.getElementById('events-table-body');
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${timeNow}</td><td>${trigger}</td><td class="highlight-detected">${detected.toUpperCase()}</td><td>${action}</td>`;
+            row.innerHTML = `<td style="font-family:'JetBrains Mono'">${timeNow}</td><td>${trigger}</td><td class="highlight-detected">${detected}</td><td>${action}</td>`;
             tbody.prepend(row);
             if (tbody.children.length > 15) tbody.removeChild(tbody.lastChild);
         }
@@ -767,7 +704,7 @@
         function showToast(msg) {
             const t = document.getElementById('hud-toast');
             t.innerText = msg; t.style.display = 'block';
-            setTimeout(() => t.style.display = 'none', 3000);
+            setTimeout(() => t.style.display = 'none', 3500);
         }
 
         /* ========================================================
@@ -777,16 +714,18 @@
         function initChart() {
             if (typeof Chart === 'undefined') { console.warn('Chart.js unavailable'); return; }
             const ctx = document.getElementById('historyChart').getContext('2d');
+            Chart.defaults.color = '#86868b';
+            Chart.defaults.font.family = "'Inter', sans-serif";
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: Array(20).fill(''),
                     datasets: [{
-                        label: 'CH4 %', borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        data: Array(20).fill(0.1), tension: 0.3, borderWidth:2, pointRadius:0, fill: true
+                        label: 'CH4 %', borderColor: '#ff453a', backgroundColor: 'rgba(255, 69, 58, 0.1)',
+                        data: Array(20).fill(0.1), tension: 0.4, borderWidth:2, pointRadius:0, fill: true
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { display: true } }, plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { display: true, border: {display: false}, grid: {color: 'rgba(255,255,255,0.05)'} } }, plugins: { legend: { display: false } } }
             });
         }
         function updateChart() {
@@ -876,7 +815,7 @@
                     if(showHeat) {
                         let risk = (x+y)/20;
                         if(activeScenario===1 && x>4 && y>4) risk = 0.9;
-                        cell.style.boxShadow = `inset 0 0 15px rgba(239,68,68,${risk})`;
+                        cell.style.boxShadow = `inset 0 0 15px rgba(255,69,58,${risk})`;
                     }
                     m.appendChild(cell);
                 }
@@ -896,19 +835,21 @@
             osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, beepAudioCtx.currentTime + 0.5); osc.stop(beepAudioCtx.currentTime + 0.5);
         }
 
-        function setSystemState(stateClass, badgeText=null, badgeColor=null) {
+        function setSystemState(stateClass, badgeText=null, badgeColor=null, badgeBg=null) {
             document.body.classList.remove('state-NORMAL', 'state-CRITICAL', 'state-WARNING', 'state-ALERT');
             document.body.classList.add(`state-${stateClass}`);
+            const b = document.getElementById('system-status');
+            
             if(badgeText) {
-                const b = document.getElementById('system-status');
                 b.innerText = badgeText;
                 b.style.color = badgeColor;
-                b.style.borderColor = badgeColor;
+                b.style.background = badgeBg || 'transparent';
             }
             if(stateClass === 'CRITICAL' || stateClass === 'ALERT') playBeep();
             if (stateClass === 'NORMAL') {
-                document.getElementById('system-status').innerText = 'SYSTEM NORMAL';
-                document.getElementById('system-status').style.color = 'var(--status-safe)';
+                b.innerText = 'SYSTEM NORMAL';
+                b.style.color = 'var(--status-safe)';
+                b.style.background = 'rgba(50,215,75,0.15)';
             }
         }
 
@@ -942,6 +883,7 @@
             sysData.ch4 = 0.1; sysData.rssi = -45;
             setSystemState('NORMAL');
             document.getElementById('m-action').innerText = '--';
+            document.getElementById('m-action').style.color = 'var(--accent-main)';
 
             if (id === 0) { 
                 setVisionMode('rgb');
@@ -959,14 +901,15 @@
                 if (scenarioTick < 300) sysData.ch4 += (1.8 - 0.1) / 300; 
                 if (scenarioTick === 50) logEvent("Sensor", "Elevated CH4 Detected", "Monitoring");
                 if (scenarioTick === 200) {
-                    setSystemState('WARNING', 'CH4 RISING', 'var(--status-warn)');
+                    setSystemState('WARNING', 'CH4 RISING', 'var(--status-warn)', 'rgba(255,214,10,0.15)');
                     logEvent("Sensor", "Warning Threshold Reached", "Alerting Operator");
                 }
                 if (scenarioTick === 300) {
-                    setSystemState('CRITICAL', 'TOXIC GAS LEAK', 'var(--status-crit)');
+                    setSystemState('CRITICAL', 'TOXIC GAS LEAK', 'var(--status-crit)', 'rgba(255,69,58,0.15)');
                     document.getElementById('ts-explore').classList.replace('active','done');
                     document.getElementById('ts-hazard').classList.add('active');
                     document.getElementById('m-action').innerText = 'EVACUATE';
+                    document.getElementById('m-action').style.color = 'var(--status-crit)';
                     logEvent("Sensor", "CRITICAL GAS LEAK", "INITIATING AUTO-EVACUATE");
                     clearInterval(scenarioInterval);
                 }
@@ -976,7 +919,7 @@
             if (id === 2) {
                 if (scenarioTick === 20) {
                     commsDegraded = true;
-                    setSystemState('WARNING', 'STRUC ALRT', 'var(--status-warn)');
+                    setSystemState('WARNING', 'STRUC ALRT', 'var(--status-warn)', 'rgba(255,214,10,0.15)');
                     document.getElementById('map-wifi').innerText = '[WIFI] -85dBm';
                     document.getElementById('map-wifi').style.color = 'var(--status-warn)';
                     document.getElementById('chk-signal').checked = true;
@@ -991,7 +934,7 @@
                     
                     let endPoint = [9, 9];
                     rescuePath = aStar(roverPos, endPoint);
-                    if(rescuePath.length > 0) logEvent("A*", "Path recalibrated", "Avoiding Structural Hazards");
+                    if(rescuePath.length > 0) logEvent("A*", "Path recalibrated", "Avoiding Hazards");
                     renderMap();
                     clearInterval(scenarioInterval);
                 }
@@ -1005,7 +948,7 @@
 
                 if(scenarioTick === 30) {
                     document.getElementById('thermal-badge').style.display = 'block';
-                    setSystemState('ALERT', 'TARGET ACQUIRED', 'var(--status-info)');
+                    setSystemState('ALERT', 'TARGET ACQUIRED', 'var(--status-info)', 'rgba(10,132,255,0.15)');
                     document.getElementById('target-lock').style.display = 'block';
                     document.getElementById('m-action').innerText = 'HALTED';
                     logEvent("YOLOv8", "Human Heat Signature", "Locking Target");
