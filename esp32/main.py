@@ -45,23 +45,15 @@ def get_distance():
     time.sleep_us(10)
     trig.value(0)
     
-    # Wait for echo to go HIGH (with timeout)
-    t_start = time.ticks_us()
-    while echo.value() == 0:
-        if time.ticks_diff(time.ticks_us(), t_start) > TIMEOUT_US:
-            return 999.0  # Sensor not responding, return large value
-        pulse_start = time.ticks_us()
-        
-    # Wait for echo to go LOW (with timeout)
-    t_start = time.ticks_us()
-    while echo.value() == 1:
-        if time.ticks_diff(time.ticks_us(), t_start) > TIMEOUT_US:
-            return 999.0  # Echo stuck HIGH, return large value
-        pulse_end = time.ticks_us()
-        
-    pulse_duration = time.ticks_diff(pulse_end, pulse_start)
-    distance = (pulse_duration * 0.0343) / 2
-    return round(distance, 2)
+    try:
+        # time_pulse_us(pin, pulse_level, timeout_us)
+        pulse_duration = machine.time_pulse_us(echo, 1, 30000)
+        if pulse_duration < 0:
+            return 999.0
+        distance = (pulse_duration * 0.0343) / 2
+        return round(distance, 2)
+    except OSError:
+        return 999.0
 
 def get_gas_status():
     # DO pin goes LOW (0) when gas is detected, HIGH (1) normally

@@ -9,10 +9,10 @@ class MotorController:
 
     YOUR WIRING (Physical Pins & Observed Behavior):
     ┌─────────────────────────────────────────────┐
-    │  IN1 (Pin 11, BCM 17) → LEFT  Motor Backward│
-    │  IN2 (Pin 13, BCM 27) → LEFT  Motor Forward │
-    │  IN3 (Pin 15, BCM 22) → RIGHT Motor Backward│
-    │  IN4 (Pin 18, BCM 24) → RIGHT Motor Forward │
+    │  IN1 (Pin 22, BCM 25) → LEFT  Motor Backward│
+    │  IN2 (Pin 15, BCM 22) → LEFT  Motor Forward │
+    │  IN3 (Pin 31, BCM  6) → RIGHT Motor Backward│
+    │  IN4 (Pin 12, BCM 18) → RIGHT Motor Forward │
     └─────────────────────────────────────────────┘
 
     DIRECTION LOGIC:

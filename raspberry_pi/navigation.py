@@ -12,6 +12,10 @@ class Navigator:
         if self.is_returning:
             return  # Don't accept new commands while auto-returning
             
+        if action == "stop":
+            self.motors.stop()
+            return  # Don't record stop in history
+            
         print(f"Navigation: Executing {action}")
         if action == "forward":
             self.motors.move_forward()
@@ -21,9 +25,11 @@ class Navigator:
             self.motors.turn_left()
         elif action == "right":
             self.motors.turn_right()
-        elif action == "stop":
-            self.motors.stop()
-            return  # Don't record stop in history
+        else:
+            return
+            
+        time.sleep(duration)      # actually run for the duration
+        self.motors.stop()        # then stop
             
         # Record non-stop actions for dead reckoning
         with self._lock:
