@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mine Rescue Rover - Mission Control</title>
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -60,6 +60,20 @@
             --status-warn: #ffcc00;
             --status-crit: #ff3b30;
             --status-info: #007aff;
+            
+            --map-bg: #e5e5ea;
+            --map-shadow: rgba(0,0,0,0.15);
+            --cell-fog: rgba(0,0,0,0.05);
+            --cell-fog-border: rgba(0,0,0,0.08);
+            --cell-rock: #c7c7cc;
+            --cell-rock-border: rgba(0,0,0,0.15);
+            
+            --table-bg: rgba(0,0,0,0.02);
+            --table-th-bg: rgba(0,0,0,0.05);
+            --table-shadow: rgba(0,0,0,0.05);
+            --gauge-bg-opacity: 0.4;
+            --tag-bg: rgba(255,255,255,0.75);
+            --tag-color: rgba(0,0,0,0.7);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -168,7 +182,7 @@
         button:active { transform: scale(0.98); }
         
         .export-btn {
-            background: var(--text-main); color: #000; font-weight: 600; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; border: none;
+            background: var(--text-main); color: var(--bg-base); font-weight: 600; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; border: none;
             box-shadow: 0 4px 15px rgba(255,255,255,0.15);
         }
         .export-btn:hover { background: #fff; transform: scale(1.03); box-shadow: 0 6px 20px rgba(255,255,255,0.25); }
@@ -234,25 +248,61 @@
         @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         /* MAP */
-        .map-header-icons { display: flex; gap: 15px; font-size: 0.75rem; font-weight: 600; }
+        .map-header-icons { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
         .mine-map {
-            display: grid; gap: 12px; background: rgba(0,0,0,0.3); padding: 20px;
-            border-radius: 28px; width: 100%; aspect-ratio: 1; border: 1px solid rgba(255,255,255,0.05);
-            box-shadow: inset 0 4px 20px rgba(0,0,0,0.6);
+            display: grid; gap: 3px; background: var(--map-bg, #0a0a0c); padding: 14px;
+            border-radius: 20px; width: 100%; aspect-ratio: 15 / 13;
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 0 50px var(--map-shadow, rgba(0,0,0,0.85));
         }
-        .map-cell { background: rgba(255,255,255,0.015); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
-        .cell-safe { background: rgba(50, 215, 75, 0.04); }
-        .cell-hazard { background: rgba(255, 69, 58, 0.2); box-shadow: 0 0 10px rgba(255, 69, 58, 0.3); }
-        .cell-exit { background: rgba(50, 215, 75, 0.3); box-shadow: 0 0 15px rgba(50, 215, 75, 0.4); font-size: 0.5rem; font-weight: 700; color: #000; }
-        .cell-path { background: rgba(255,255,255,0.25); box-shadow: 0 0 8px rgba(255,255,255,0.2); transform: scale(0.8); }
-        .cell-astar-path { background: rgba(255, 159, 10, 0.4); box-shadow: 0 0 15px rgba(255, 159, 10, 0.5); transform: scale(0.8); animation: pulse-route 1.5s infinite ease-in-out; }
-        @keyframes pulse-route { 0%, 100% { opacity: 0.5; transform: scale(0.7); } 50% { opacity: 1; transform: scale(0.9); } }
-
-        .cell-rover { background: var(--accent-main); color: #000; font-weight: 800; border-radius: 50%; box-shadow: 0 0 20px rgba(255, 159, 10, 0.8); z-index: 10; transform: scale(1.2); }
-        .cell-worker { background: var(--status-info); color: #fff; font-weight: 700; border-radius: 50%; box-shadow: 0 0 20px rgba(10, 132, 255, 0.8); animation: pulse-worker 1.5s infinite alternate ease-in-out; z-index: 5; }
-        @keyframes pulse-worker { from { transform: scale(0.9); } to { transform: scale(1.2); } }
+        .map-cell {
+            border-radius: 5px; position: relative;
+            background: var(--cell-fog, rgba(255,255,255,0.02));
+            box-shadow: inset 0 0 0 1px var(--cell-fog-border, rgba(255,255,255,0.03));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.55rem; font-weight: 800;
+            transition: all 0.35s ease;
+        }
+        .cell-explored {                                        /* tunnel floor */
+            background: rgba(255,159,10,0.12);
+            box-shadow: inset 0 0 0 1px rgba(255,159,10,0.18);
+        }
+        .cell-hazard {
+            background: repeating-linear-gradient(45deg,
+                rgba(255,69,58,.35) 0 5px, rgba(255,69,58,.12) 5px 10px);
+            box-shadow: inset 0 0 0 1px rgba(255,69,58,.5), 0 0 12px rgba(255,69,58,.25);
+        }
+        .cell-hazard::after { content: '⚠'; color: var(--status-crit); font-size: .7rem; }
+        .cell-exit {
+            background: rgba(50,215,75,.18);
+            box-shadow: inset 0 0 0 1px rgba(50,215,75,.6), 0 0 12px rgba(50,215,75,.3);
+            color: var(--status-safe);
+        }
+        .cell-path { background: rgba(255,159,10,.55); box-shadow: 0 0 10px rgba(255,159,10,.4); }
+        .cell-path::after { content: '▸'; color: #000; }
+        .cell-rover {
+            background: var(--accent-main); color: #000; z-index: 10; transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(255,159,10,.9);
+        }
+        .cell-rover::after { content: '▲'; font-size: .65rem; }
+        .cell-worker {
+            background: var(--status-info); z-index: 5; transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(10,132,255,.9);
+            animation: pulse-worker 1.2s infinite alternate ease-in-out;
+        }
+        .cell-worker::after { content: '✚'; color: #fff; font-size: .6rem; }
         
-        .cell-crack::after { content: '[WARN]'; position: absolute; font-size: 0.5rem; font-weight: 700; color: var(--status-warn); }
+        .cell-rock { background: var(--cell-rock, #17171b); box-shadow: inset 0 0 0 1px var(--cell-rock-border, rgba(255,255,255,0.04)); }
+        .cell-chamber { background: rgba(10,132,255,0.18) !important;
+                        box-shadow: inset 0 0 0 1px rgba(10,132,255,0.35); }
+        .panel-tag {
+            position: absolute; transform: translate(-50%,-50%); z-index: 20; pointer-events: none;
+            font: 700 0.6rem 'JetBrains Mono', monospace; letter-spacing: 0.25em;
+            color: var(--tag-color); background: var(--tag-bg);
+            padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border-color);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .cell-main { background: rgba(255,159,10,0.06); box-shadow: inset 0 0 0 1px rgba(255,159,10,0.12); }
         .signal-degraded .map-cell { opacity: 0.3; }
         .signal-degraded .cell-rover, .signal-degraded .cell-worker { opacity: 1; }
 
@@ -274,12 +324,12 @@
         .time-step.done::before { background: var(--status-safe); border-color: var(--status-safe); }
         
         /* TABLE & LOGS */
-        .events-table-wrapper { max-height: 180px; overflow-y: auto; border-radius: 16px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 4px 15px rgba(0,0,0,0.2); scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+        .events-table-wrapper { max-height: 180px; overflow-y: auto; border-radius: 16px; background: var(--table-bg); border: 1px solid var(--border-color); box-shadow: inset 0 4px 15px var(--table-shadow); scrollbar-width: thin; scrollbar-color: var(--text-muted) transparent; }
         .events-table-wrapper::-webkit-scrollbar { width: 6px; }
-        .events-table-wrapper::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
+        .events-table-wrapper::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.04); }
-        th { background: rgba(255,255,255,0.03); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; backdrop-filter: blur(10px); z-index: 10; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { background: var(--table-th-bg); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; backdrop-filter: blur(10px); z-index: 10; }
         td { color: var(--text-main); }
         td.highlight-detected { color: var(--accent-main); font-weight: 600; }
 
@@ -395,6 +445,18 @@
         <!-- RIGHT COLUMN -->
         <div class="col-right">
             
+            <!-- PANEL E: DEMO SCENARIO ENGINE -->
+            <div class="panel">
+                <div class="panel-header"><h2>Mission Scenarios</h2></div>
+                <div class="scenario-grid">
+                    <button class="btn-scenario" aria-label="Trigger Gas Leak Scenario" onclick="triggerScenario(1)">[1] Gas Leak</button>
+                    <button class="btn-scenario" aria-label="Trigger Structural Collapse Scenario" onclick="triggerScenario(2)">[2] Structure</button>
+                    <button class="btn-scenario" aria-label="Trigger Rescue Scenario" onclick="triggerScenario(3)">[3] Rescue</button>
+                    <button class="btn-scenario" aria-label="Reset System" onclick="triggerScenario(0)" style="background:rgba(255,69,58,0.2); color:var(--status-crit); border-color:var(--status-crit)">[ESC] Reset</button>
+                </div>
+                <label style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px;"><input type="checkbox" id="chk-sim" onchange="toggleSimMode()"> Offline Sim Mode (No Backend Required)</label>
+            </div>
+            
 
 
             <!-- PANEL C: WORKER TRACKER -->
@@ -413,15 +475,38 @@
 
 
 
+            <!-- PANEL D: MAP -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Terrain Node Graph</h2>
+                    <div class="map-header-icons">
+                        <span id="map-wifi" style="color:var(--status-info)">[WIFI] --dBm</span>
+                        <span id="map-bat" style="color:var(--status-safe)">[BAT] --%</span>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat"> Heat</label>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal" checked> Signal</label>
+                    </div>
+                </div>
+                <div style="position:relative">
+                    <div class="mine-map" id="mine-map"></div>
+                    <span class="panel-tag" style="top:27%; left:23.3%;">PANEL A</span>
+                    <span class="panel-tag" style="top:27%; left:76.7%;">PANEL B</span>
+                    <span class="panel-tag" style="top:73%; left:23.3%;">PANEL C</span>
+                    <span class="panel-tag" style="top:73%; left:76.7%;">PANEL D</span>
+                </div>
+                <div style="font-size:0.65rem; color:var(--text-muted); text-align:center; margin-top:10px;">
+                    SHORTCUTS: [W/A/S/D] Move | [SPACE] Stop | [1-3] Scenarios | [ESC] Reset
+                </div>
+            </div>
+
             <!-- MANUAL CONTROLS -->
             <div class="panel" id="manual-panel">
                 <div class="panel-header"><h2>Manual Override</h2></div>
                 <div class="controls-grid">
-                    <button style="grid-column:2" onclick="sendCommand('forward')">W</button>
-                    <button style="grid-column:1; grid-row:2" onclick="sendCommand('left')">A</button>
-                    <button class="btn-stop" style="grid-column:2; grid-row:2" onclick="sendCommand('stop')">STOP</button>
-                    <button style="grid-column:3; grid-row:2" onclick="sendCommand('right')">D</button>
-                    <button style="grid-column:2; grid-row:3" onclick="sendCommand('backward')">S</button>
+                    <button style="grid-column:2" aria-label="Move Forward" onclick="sendCommand('forward')">W</button>
+                    <button style="grid-column:1; grid-row:2" aria-label="Move Left" onclick="sendCommand('left')">A</button>
+                    <button class="btn-stop" style="grid-column:2; grid-row:2" aria-label="Stop Rover" onclick="sendCommand('stop')">STOP</button>
+                    <button style="grid-column:3; grid-row:2" aria-label="Move Right" onclick="sendCommand('right')">D</button>
+                    <button style="grid-column:2; grid-row:3" aria-label="Move Backward" onclick="sendCommand('backward')">S</button>
                 </div>
             </div>
 
@@ -469,6 +554,36 @@
         let roverPos = [2, 2];
         let workerPos = null;
         let pastPaths = new Set(["2,2"]);
+                /* # = pillar (rock) | . = gallery | C = chamber | X = hazard | E = shaft exit */
+        const MINE_LAYOUT = [
+            "E.............E",  // 0  top air-gallery (perimeter)
+            ".##.##...##.##.",  // 1  PANEL A  |  PANEL B
+            ".##.##...##.##.",  // 2
+            "...............",  // 3  bord inside panels
+            ".##.##...##.##.",  // 4
+            ".##.CC...##.##.",  // 5  chamber carved into Panel A pillar
+            "...............",  // 6  MAIN CROSS-CUT (E-W trunk)
+            ".##.##...##.##.",  // 7  PANEL C  |  PANEL D
+            ".##.##...CC.##.",  // 8  chamber carved into Panel D pillar
+            "...............",  // 9
+            ".##.##...##.##.",  // 10
+            ".##.##...##.##.",  // 11
+            "E.....X.......E"   // 12 bottom air-gallery + gas hazard
+        ];
+        let mapW = 15, mapH = 13;
+        let exits = [];
+
+        function loadMineLayout() {
+            gridData = MINE_LAYOUT.map(row => row.split('').map(ch =>
+                ch === '#' ? 0 : ch === 'X' ? 2 : ch === 'C' ? 3 : 1
+            ));
+            exits = [];
+            MINE_LAYOUT.forEach((row, y) => row.split('').forEach((ch, x) => {
+                if (ch === 'E') exits.push([x, y]);
+            }));
+            roverPos = [exits[0][0], exits[0][1]];
+            pastPaths = new Set([`${roverPos[0]},${roverPos[1]}`]);
+        }
         let mapSize = 10;
         let commsDegraded = false;
         
@@ -502,6 +617,8 @@
            2. INITIALIZATION
            ======================================================== */
         function init() {
+            loadMineLayout();
+            renderMap();
             renderGauges();
             initChart();
             requestAnimationFrame(drawProceduralVideo);
@@ -532,9 +649,13 @@
                 const ai = data.ai_report || {};
                 const map = data.map || {};
 
-                sysData.ch4 = (sensor.gas_detected === 1) ? 1.5 : 0.1;
-                sysData.dist = sensor.distance_cm || 100;
-                sysData.rssi = sensor.rssi || -50;
+                sysData.ch4  = sensor.ch4  ?? (sensor.gas_detected ? 1.5 : 0.1);
+                sysData.co   = sensor.co   ?? sysData.co;
+                sysData.o2   = sensor.o2   ?? sysData.o2;
+                sysData.temp = sensor.temp ?? sysData.temp;
+                sysData.hum  = sensor.hum  ?? sysData.hum;
+                sysData.dist = sensor.distance_cm ?? sysData.dist;
+                sysData.rssi = sensor.rssi ?? sysData.rssi;
                 
                 if(map.grid) gridData = map.grid;
                 if(map.rover_pos) roverPos = map.rover_pos;
@@ -574,21 +695,19 @@
             if(isAutoMode) return;
             lastManualMove = Date.now(); // Guard idle patrol
             
-            if(SIM_MODE) {
-                let nx = roverPos[0], ny = roverPos[1];
-                if(action==='forward') ny++;
-                if(action==='backward') ny--;
-                if(action==='right') nx++;
-                if(action==='left') nx--;
-                
-                if(!isCellBlocked(nx, ny)) {
-                    roverPos = [nx, ny];
-                    pastPaths.add(`${nx},${ny}`);
-                    renderMap();
-                } else {
-                    showToast("CELL BLOCKED!");
-                    return;
-                }
+            // Always move rover on the map (works with or without backend)
+            let nx = roverPos[0], ny = roverPos[1];
+            if(action==='forward') ny--;
+            if(action==='backward') ny++;
+            if(action==='right') nx++;
+            if(action==='left') nx--;
+            
+            if(!isCellBlocked(nx, ny)) {
+                roverPos = [nx, ny];
+                pastPaths.add(`${nx},${ny}`);
+                renderMap();
+            } else {
+                showToast("CELL BLOCKED!");
             }
             
             fetch('/command', {
@@ -629,20 +748,50 @@
         function drawProceduralVideo() {
             vCanvas.width = vCanvas.clientWidth || 800;
             vCanvas.height = vCanvas.clientHeight || 450;
-            let w = vCanvas.width;
-            let h = vCanvas.height;
+            let w = vCanvas.width, h = vCanvas.height;
+            let t = Date.now() / 1000;
+
+            // drifting vanishing point = camera slowly moving
+            let vx = w/2 + Math.sin(t*0.3)*30;
+            let vy = h/2 + Math.cos(t*0.2)*15;
+
+            const isLight = document.body.classList.contains('light-mode');
             
-            let grd = vCtx.createRadialGradient(w/2, h/2, 50, w/2, h/2, w);
-            grd.addColorStop(0, "#1c1c1e");
-            grd.addColorStop(1, "#000");
+            // ambient glow instead of black void
+            let grd = vCtx.createRadialGradient(vx, vy, 30, vx, vy, w*0.8);
+            if (isLight) {
+                grd.addColorStop(0, "#d1d1d6");
+                grd.addColorStop(0.4, "#e5e5ea");
+                grd.addColorStop(1, "#f2f2f7");
+            } else {
+                grd.addColorStop(0, "#3d3d44");
+                grd.addColorStop(0.4, "#1c1c20");
+                grd.addColorStop(1, "#060607");
+            }
             vCtx.fillStyle = grd;
             vCtx.fillRect(0, 0, w, h);
-            
-            vCtx.strokeStyle = "rgba(255,255,255,0.03)";
-            vPhase += 2;
-            for(let i=0; i<w; i+=40) {
-                vCtx.beginPath(); vCtx.moveTo(i, 0); vCtx.lineTo(i - (vPhase%40), h); vCtx.stroke();
+
+            // tunnel walls converging to vanishing point
+            vCtx.strokeStyle = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
+            vCtx.lineWidth = 2;
+            [[0,0],[w,0],[0,h],[w,h]].forEach(([cx,cy]) => {
+                vCtx.beginPath(); vCtx.moveTo(cx,cy); vCtx.lineTo(vx,vy); vCtx.stroke();
+            });
+
+            // floor ribs rushing toward camera (movement illusion)
+            for(let i=0;i<10;i++){
+                let z = (t*0.25 + i/10) % 1;
+                let y = vy + (h - vy) * z*z;
+                vCtx.strokeStyle = isLight ? `rgba(255,149,0,${0.1 + z*0.2})` : `rgba(255,159,10,${0.05 + z*0.15})`;
+                vCtx.lineWidth = 1 + z*3;
+                vCtx.beginPath(); vCtx.moveTo(0, y); vCtx.lineTo(w, y); vCtx.stroke();
             }
+
+            // camera HUD text
+            vCtx.fillStyle = isLight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.5)';
+            vCtx.font = "12px 'JetBrains Mono'";
+            vCtx.fillText("CAM-01  TUNNEL-A", 15, h-15);
+            vCtx.fillText(new Date().toLocaleTimeString(), w-110, h-15);
             
             // Thermal Blob
             if(isThermal && activeScenario === 3 && scenarioTick > 20) {
@@ -691,7 +840,7 @@
                 g.zones.forEach(z => {
                     let len = (z.pct - startPct) * arcTotal;
                     let off = startPct * arcTotal;
-                    bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.25" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
+                    bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.5" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
                     startPct = z.pct;
                 });
                 
@@ -765,9 +914,10 @@
            7. MAP & A* PATHFINDING
            ======================================================== */
         function isCellBlocked(x, y) {
-            if (x<0 || x>=mapSize || y<0 || y>=mapSize) return true;
-            if (gridData[y][x] === 2) return true; 
-            if (activeScenario === 2 && (y===5 || y===6) && x > 3 && x < 8) return true; 
+            if (x < 0 || x >= mapW || y < 0 || y >= mapH) return true;
+            const v = gridData[y][x];
+            if (v === 0 || v === 2) return true;
+            if (activeScenario === 2 && y === 6 && x > 3 && x < 11) return true;
             return false;
         }
 
@@ -806,8 +956,45 @@
             }
             return [];
         }
+        function renderMap() {
+            const map = document.getElementById('mine-map');
+            if (!map) return;
+            map.innerHTML = '';
+            map.style.gridTemplateColumns = `repeat(${mapW}, 1fr)`;
 
+            let dimSignal = document.getElementById('chk-signal') ? document.getElementById('chk-signal').checked : true;
+            if(commsDegraded && dimSignal) map.classList.add('signal-degraded');
+            else map.classList.remove('signal-degraded');
 
+            let collapseZone = false;
+
+            for (let y = 0; y < mapH; y++) {
+                for (let x = 0; x < mapW; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'map-cell';
+                    
+                    const isRover  = roverPos[0] === x && roverPos[1] === y;
+                    const isWorker = workerPos && workerPos[0] === x && workerPos[1] === y;
+                    collapseZone = (activeScenario === 2 && y === 6 && x > 3 && x < 11);
+                    const v = gridData[y][x];
+                    const isMain = (y % 6 === 0 || x % 7 === 0);
+
+                    if (v === 0)                       cell.classList.add('cell-rock');
+                    else if (isRover) cell.classList.add('cell-rover');
+                    else if (isWorker) cell.classList.add('cell-worker');
+                    else if (v === 2 || collapseZone)  cell.classList.add('cell-hazard');
+                    else if (exits.some(e => e[0]===x && e[1]===y)) { cell.classList.add('cell-exit'); cell.innerText='E'; }
+                    else if (rescuePath.some(p => p[0]===x && p[1]===y)) cell.classList.add('cell-path');
+                    else if (pastPaths.has(`${x},${y}`)) {
+                        cell.classList.add('cell-explored');
+                        if (v === 3) cell.classList.add('cell-chamber');
+                    }
+                    else if (isMain) cell.classList.add('cell-main');
+
+                    map.appendChild(cell);
+                }
+            }
+        }
 
         /* ========================================================
            8. SYSTEM STATES & AUDIO
@@ -997,6 +1184,9 @@
                 sysData.ch4 = Math.max(0, sysData.ch4 + (Math.random()-0.5)*0.02);
                 sysData.rssi = Math.min(-30, sysData.rssi + (Math.random()-0.5)*2);
                 sysData.temp = 28 + (Math.random()-0.5)*0.5;
+                sysData.co = Math.max(0, sysData.co + (Math.random()-0.5)*1);
+                sysData.o2 = Math.min(21, Math.max(19, sysData.o2 + (Math.random()-0.5)*0.1));
+                sysData.hum = Math.max(40, Math.min(80, sysData.hum + (Math.random()-0.5)*2));
                 sysData.dist = Math.max(15, Math.min(200, sysData.dist + (Math.random()-0.5)*15));
             }
             
