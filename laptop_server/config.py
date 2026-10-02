@@ -4,10 +4,10 @@
 HOST    = '0.0.0.0'
 WEB_PORT = 5000
 
-# Raspberry Pi (fixed IP — everything connects to RPi)
-RPI_IP           = "192.168.4.241"
-RPI_COMMAND_PORT = 5006   # Laptop → RPi: send motor commands
-RPI_TELEMETRY_PORT = 5007 # Laptop → RPi: subscribe to sensor stream
+# ESP32 Rover (Replaces Raspberry Pi)
+RPI_IP           = "192.168.4.XXX"   # <-- CHANGE THIS TO YOUR ESP32 IP ADDRESS
+RPI_COMMAND_PORT = 5006   # Laptop → ESP32: send motor commands
+RPI_TELEMETRY_PORT = 5007 # Laptop → ESP32: subscribe to sensor stream
 
 # ── Hardware ─────────────────────────────────────
 # ESP-CAM stream URL (get IP from ESP-CAM serial monitor after flashing)

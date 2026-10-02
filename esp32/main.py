@@ -3,12 +3,13 @@ import time
 import network
 import socket
 import json
+import _thread
 
 # --- CONFIGURATION ---
-SSID = "kesava"              # WiFi network name
-PASSWORD = "123456789"  # ← fill your WiFi password here
-SERVER_IP = "192.168.4.241"  # Raspberry Pi IP
-SERVER_PORT = 5005
+SSID = "kesava"
+PASSWORD = "123456789"
+COMMAND_PORT = 5006
+TELEMETRY_PORT = 5007
 
 # --- HARDWARE SETUP ---
 # Ultrasonic Sensor
@@ -21,6 +22,17 @@ echo = machine.Pin(ECHO_PIN, machine.Pin.IN)
 MQ6_DO_PIN = 27
 mq6_do = machine.Pin(MQ6_DO_PIN, machine.Pin.IN)
 
+# Motor Driver L298N (New Wiring!)
+IN1 = machine.Pin(26, machine.Pin.OUT)  # Left Backward
+IN2 = machine.Pin(14, machine.Pin.OUT)  # Left Forward
+IN3 = machine.Pin(12, machine.Pin.OUT)  # Right Backward
+IN4 = machine.Pin(13, machine.Pin.OUT)  # Right Forward
+
+def stop_motors():
+    IN1.value(0); IN2.value(0); IN3.value(0); IN4.value(0)
+
+stop_motors()
+
 # --- WIFI CONNECTION ---
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
@@ -31,86 +43,101 @@ def connect_wifi():
         while not wlan.isconnected():
             time.sleep(1)
             print('.', end='')
+    ip = wlan.ifconfig()[0]
     print('\nNetwork config:', wlan.ifconfig())
-    return wlan
-    
+    print('ESP32 IP:', ip)
+    return wlan, ip
 
-# --- SENSOR READING ---
-TIMEOUT_US = 30000  # 30ms timeout (~5m max range)
-
+# --- SENSOR LOGIC ---
 def get_distance():
     trig.value(0)
     time.sleep_us(2)
     trig.value(1)
     time.sleep_us(10)
     trig.value(0)
-    
     try:
-        # time_pulse_us(pin, pulse_level, timeout_us)
         pulse_duration = machine.time_pulse_us(echo, 1, 30000)
-        if pulse_duration < 0:
-            return 999.0
-        distance = (pulse_duration * 0.0343) / 2
-        return round(distance, 2)
+        if pulse_duration < 0: return 999.0
+        return round((pulse_duration * 0.0343) / 2, 2)
     except OSError:
         return 999.0
 
 def get_gas_status():
-    # DO pin goes LOW (0) when gas is detected, HIGH (1) normally
     return 1 if mq6_do.value() == 0 else 0
 
-# --- MAIN LOOP ---
-def main():
-    wlan = connect_wifi()
+# --- TELEMETRY SERVER (Port 5007) ---
+def telemetry_server_task():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(('0.0.0.0', TELEMETRY_PORT))
+    srv.listen(1)
+    print(f"Telemetry listening on port {TELEMETRY_PORT}")
     
-    # Setup socket to send data to laptop
-    s = socket.socket()
     while True:
         try:
-            print(f"Connecting to server {SERVER_IP}:{SERVER_PORT}")
-            s.connect((SERVER_IP, SERVER_PORT))
-            print("Connected!")
-            break
-        except Exception as e:
-            print("Connection failed, retrying in 5s...", e)
-            time.sleep(5)
-
-    while True:
-        try:
-            dist = get_distance()
-            gas = get_gas_status()
-            rssi = wlan.status('rssi')
-            
-            data = {
-                "source": "esp32_sensors",
-                "distance_cm": round(dist, 2),
-                "gas_detected": gas,
-                "rssi": rssi
-            }
-            
-            payload = json.dumps(data) + '\n'
-            s.send(payload.encode())
-            print(f"Sent: {payload.strip()}")
-            
-        except OSError as e:
-            print("Error sending data:", e)
-            # Try to reconnect
-            time.sleep(3)
-            try:
-                s.close()
-            except:
-                pass
-            s = socket.socket()
+            conn, addr = srv.accept()
+            print("Telemetry client connected:", addr)
             while True:
-                try:
-                    print("Reconnecting to server...")
-                    s.connect((SERVER_IP, SERVER_PORT))
-                    print("Reconnected!")
-                    break
-                except:
-                    time.sleep(5)
-                
-        time.sleep(0.5)  # Send data every 500ms
+                dist = get_distance()
+                gas = get_gas_status()
+                data = {
+                    "source": "esp32_rover",
+                    "distance_cm": dist,
+                    "gas_detected": gas,
+                    "rssi": -50 # placeholder if status not available
+                }
+                payload = json.dumps(data) + '\n'
+                conn.sendall(payload.encode())
+                time.sleep(0.5)
+        except Exception as e:
+            print("Telemetry dropped, waiting for reconnect...")
+            try:
+                conn.close()
+            except: pass
 
-# MicroPython: directly call main (no __name__ == '__main__' support)
-main()
+# --- COMMAND SERVER (Port 5006) ---
+def command_server_task():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(('0.0.0.0', COMMAND_PORT))
+    srv.listen(5)
+    print(f"Command listening on port {COMMAND_PORT}")
+    
+    while True:
+        try:
+            conn, addr = srv.accept()
+            data = conn.recv(1024).decode('utf-8').strip()
+            if data:
+                try:
+                    payload = json.loads(data)
+                    action = payload.get("action", "")
+                    print("Received command:", action)
+                    if action == "forward":
+                        IN1.value(0); IN2.value(1); IN3.value(0); IN4.value(1)
+                    elif action == "backward":
+                        IN1.value(1); IN2.value(0); IN3.value(1); IN4.value(0)
+                    elif action == "left":
+                        IN1.value(1); IN2.value(0); IN3.value(0); IN4.value(1)
+                    elif action == "right":
+                        IN1.value(0); IN2.value(1); IN3.value(1); IN4.value(0)
+                    elif action == "stop":
+                        stop_motors()
+                    
+                    # Run for 0.5s then stop (like the Pi did)
+                    if action != "stop":
+                        time.sleep(0.5)
+                        stop_motors()
+                except Exception as e:
+                    print("Parse error:", e)
+            conn.close()
+        except Exception as e:
+            print("Command server error:", e)
+
+# --- MAIN ---
+wlan, esp_ip = connect_wifi()
+
+# Start background thread for telemetry
+_thread.start_new_thread(telemetry_server_task, ())
+
+# Run command server in main thread
+command_server_task()

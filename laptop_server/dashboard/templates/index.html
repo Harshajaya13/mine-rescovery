@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mine Rescue Rover - Mission Control</title>
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap"
+        rel="stylesheet">
     <!-- Chart.js & Socket.io -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -25,10 +28,10 @@
             --btn-bg-hover: rgba(255, 255, 255, 0.12);
             --btn-border: rgba(255, 255, 255, 0.08);
             --shadow-panel: 0 20px 40px rgba(0, 0, 0, 0.4);
-            --panel-border-inner: inset 0 1px 0 rgba(255,255,255,0.05);
+            --panel-border-inner: inset 0 1px 0 rgba(255, 255, 255, 0.05);
             --hud-bg: rgba(0, 0, 0, 0.6);
             --video-bg: #000;
-            
+
             /* Apple System Colors */
             --status-safe: #32d74b;
             --status-warn: #ffd60a;
@@ -52,36 +55,40 @@
             --btn-bg-hover: rgba(0, 0, 0, 0.08);
             --btn-border: rgba(0, 0, 0, 0.08);
             --shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.08);
-            --panel-border-inner: inset 0 1px 0 rgba(255,255,255,0.8);
+            --panel-border-inner: inset 0 1px 0 rgba(255, 255, 255, 0.8);
             --hud-bg: rgba(255, 255, 255, 0.6);
             --video-bg: #e5e5ea;
-            
+
             --status-safe: #28cd41;
             --status-warn: #ffcc00;
             --status-crit: #ff3b30;
             --status-info: #007aff;
-            
+
             --map-bg: #e5e5ea;
-            --map-shadow: rgba(0,0,0,0.15);
-            --cell-fog: rgba(0,0,0,0.05);
-            --cell-fog-border: rgba(0,0,0,0.08);
+            --map-shadow: rgba(0, 0, 0, 0.15);
+            --cell-fog: rgba(0, 0, 0, 0.05);
+            --cell-fog-border: rgba(0, 0, 0, 0.08);
             --cell-rock: #c7c7cc;
-            --cell-rock-border: rgba(0,0,0,0.15);
-            
-            --table-bg: rgba(0,0,0,0.02);
-            --table-th-bg: rgba(0,0,0,0.05);
-            --table-shadow: rgba(0,0,0,0.05);
+            --cell-rock-border: rgba(0, 0, 0, 0.15);
+
+            --table-bg: rgba(0, 0, 0, 0.02);
+            --table-th-bg: rgba(0, 0, 0, 0.05);
+            --table-shadow: rgba(0, 0, 0, 0.05);
             --gauge-bg-opacity: 0.4;
-            --tag-bg: rgba(255,255,255,0.75);
-            --tag-color: rgba(0,0,0,0.7);
+            --tag-bg: rgba(255, 255, 255, 0.75);
+            --tag-color: rgba(0, 0, 0, 0.7);
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: var(--bg-base);
-            background-image: 
+            background-image:
                 radial-gradient(circle at 10% 20%, rgba(255, 159, 10, 0.07), transparent 40%),
                 radial-gradient(circle at 90% 80%, rgba(10, 132, 255, 0.07), transparent 40%);
             background-attachment: fixed;
@@ -96,260 +103,815 @@
 
         /* VIGNETTE AND SHAKE EFFECTS */
         body::after {
-            content: ''; position: fixed; inset: 0; pointer-events: none;
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
             background: radial-gradient(circle, transparent 40%, rgba(255, 69, 58, 0) 100%);
-            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); z-index: 9999; opacity: 0;
+            transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: 9999;
+            opacity: 0;
         }
 
-        body.state-CRITICAL::after { opacity: 1; background: radial-gradient(circle, transparent 30%, rgba(255, 69, 58, 0.25) 100%); }
-        body.state-WARNING::after { opacity: 1; background: radial-gradient(circle, transparent 30%, rgba(255, 214, 10, 0.15) 100%); }
-        body.state-ALERT::after { opacity: 1; background: radial-gradient(circle, transparent 30%, rgba(10, 132, 255, 0.15) 100%); }
+        body.state-CRITICAL::after {
+            opacity: 1;
+            background: radial-gradient(circle, transparent 30%, rgba(255, 69, 58, 0.25) 100%);
+        }
+
+        body.state-WARNING::after {
+            opacity: 1;
+            background: radial-gradient(circle, transparent 30%, rgba(255, 214, 10, 0.15) 100%);
+        }
+
+        body.state-ALERT::after {
+            opacity: 1;
+            background: radial-gradient(circle, transparent 30%, rgba(10, 132, 255, 0.15) 100%);
+        }
 
         @keyframes screen-shake {
-            0%, 100% { transform: translate(0, 0) rotate(0deg); }
-            10%, 30%, 50%, 70%, 90% { transform: translate(-1px, -1px) rotate(-0.5deg); }
-            20%, 40%, 60%, 80% { transform: translate(1px, 1px) rotate(0.5deg); }
+
+            0%,
+            100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translate(-1px, -1px) rotate(-0.5deg);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translate(1px, 1px) rotate(0.5deg);
+            }
         }
-        body.shaking { animation: screen-shake 0.4s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+
+        body.shaking {
+            animation: screen-shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
 
         /* TICKER */
         .ticker-wrap {
-            width: 100%; overflow: hidden; background: var(--ticker-bg);
-            backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-            padding: 8px 0; border-bottom: 1px solid var(--border-color); white-space: nowrap;
+            width: 100%;
+            overflow: hidden;
+            background: var(--ticker-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
         }
+
         .ticker {
-            display: inline-block; white-space: nowrap; font-family: 'JetBrains Mono', monospace;
-            font-weight: 500; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--text-muted);
+            display: inline-block;
+            white-space: nowrap;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            font-size: 0.7rem;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
             animation: ticker-scroll 30s linear infinite;
         }
-        @keyframes ticker-scroll { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+        @keyframes ticker-scroll {
+            0% {
+                transform: translateX(100vw);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
 
         /* HEADER */
         header {
             background: var(--header-bg);
-            backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border-bottom: 1px solid var(--border-color);
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 1.25rem 2.5rem; z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 2.5rem;
+            z-index: 100;
         }
-        
+
         header h1 {
-            font-size: 1.4rem; font-weight: 700; letter-spacing: -0.03em;
-            color: var(--text-main); display: flex; align-items: center; gap: 12px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .status-badge {
-            padding: 0.5rem 1.25rem; border-radius: 30px; font-size: 0.75rem; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 0.08em; transition: all 0.4s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 0.5rem 1.25rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         /* LAYOUT */
         .dashboard {
-            display: grid; grid-template-columns: 1fr 420px; gap: 2rem;
-            padding: 2rem; height: calc(100vh - 90px); overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 2rem;
+            padding: 2rem;
+            height: calc(100vh - 90px);
+            overflow-y: auto;
         }
-        .col-left, .col-right { display: flex; flex-direction: column; gap: 2rem; }
+
+        .col-left,
+        .col-right {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
 
         /* GLASSMORPHIC PANELS */
         .panel {
             background: var(--panel-bg);
-            backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
             border: 1px solid var(--border-color);
             border-radius: 28px;
-            padding: 1.75rem; display: flex; flex-direction: column; gap: 1.25rem;
+            padding: 1.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
             box-shadow: var(--shadow-panel), var(--panel-border-inner);
             transition: transform 0.3s ease, border-color 0.3s ease;
         }
+
         .panel:hover {
             border-color: var(--border-highlight);
         }
 
         .panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.04); padding-bottom: 1rem; margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            padding-bottom: 1rem;
+            margin-bottom: 0.5rem;
         }
-        h2 { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
+
+        h2 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 0;
+        }
 
         /* BUTTONS */
-        button, .export-btn, .btn-scenario {
-            background: var(--btn-bg); border: 1px solid var(--btn-border);
-            color: var(--text-main); border-radius: 14px; font-family: 'Inter', sans-serif;
-            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer;
+        button,
+        .export-btn,
+        .btn-scenario {
+            background: var(--btn-bg);
+            border: 1px solid var(--btn-border);
+            color: var(--text-main);
+            border-radius: 14px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+            cursor: pointer;
         }
-        button:hover { background: var(--btn-bg-hover); transform: scale(1.02); }
-        button:active { transform: scale(0.98); }
-        
-        .export-btn {
-            background: var(--text-main); color: var(--bg-base); font-weight: 600; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; border: none;
-            box-shadow: 0 4px 15px rgba(255,255,255,0.15);
-        }
-        .export-btn:hover { background: #fff; transform: scale(1.03); box-shadow: 0 6px 20px rgba(255,255,255,0.25); }
 
-        .btn-scenario { padding: 12px; font-size: 0.8rem; font-weight: 600; }
-        
-        .btn-toggle { padding: 8px 16px; font-weight: 600; font-size: 0.8rem; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
-        .btn-toggle.active { background: var(--accent-main); color: #000; border: none; box-shadow: 0 4px 15px rgba(255, 159, 10, 0.4); }
+        button:hover {
+            background: var(--btn-bg-hover);
+            transform: scale(1.02);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .export-btn {
+            background: var(--text-main);
+            color: var(--bg-base);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
+        }
+
+        .export-btn:hover {
+            background: #fff;
+            transform: scale(1.03);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.25);
+        }
+
+        .btn-scenario {
+            padding: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .btn-toggle {
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-toggle.active {
+            background: var(--accent-main);
+            color: #000;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 159, 10, 0.4);
+        }
 
         /* VISION HUB */
-        .vision-tabs { display: flex; gap: 8px; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.05); }
-        .vision-tab {
-            background: transparent; border: none; color: var(--text-muted); font-size: 0.75rem; font-weight: 600;
-            padding: 8px 16px; border-radius: 10px; transition: all 0.3s ease;
+        .vision-tabs {
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 5px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
-        .vision-tab:hover { background: rgba(255,255,255,0.05); transform: none; }
-        .vision-tab.active { background: rgba(255,255,255,0.12); color: var(--text-main); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+
+        .vision-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .vision-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: none;
+        }
+
+        .vision-tab.active {
+            background: rgba(255, 255, 255, 0.12);
+            color: var(--text-main);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
 
         .video-wrapper {
-            position: relative; width: 100%; aspect-ratio: 16/9; background: var(--video-bg);
-            border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: var(--video-bg);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
         }
-        canvas#video-feed { width: 100%; height: 100%; object-fit: cover; transition: filter 0.5s ease; }
-        .video-wrapper.thermal-mode canvas, .video-wrapper.thermal-mode img { filter: grayscale(100%) contrast(150%) hue-rotate(180deg) invert(100%) sepia(100%) saturate(500%) hue-rotate(280deg); }
+
+        canvas#video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: filter 0.5s ease;
+        }
+
+        .video-wrapper.thermal-mode canvas,
+        .video-wrapper.thermal-mode img {
+            filter: grayscale(100%) contrast(150%) hue-rotate(180deg) invert(100%) sepia(100%) saturate(500%) hue-rotate(280deg);
+        }
 
         /* OVERLAYS */
-        .hud-overlay { position: absolute; inset: 0; pointer-events: none; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
-        
+        .hud-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
         .hud-toast {
-            display: none; align-self: center; margin: auto; padding: 14px 28px; border-radius: 16px;
-            background: rgba(255, 69, 58, 0.25); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-            border: 1px solid rgba(255, 69, 58, 0.6); font-weight: 700; font-size: 0.95rem; color: var(--status-crit);
+            display: none;
+            align-self: center;
+            margin: auto;
+            padding: 14px 28px;
+            border-radius: 16px;
+            background: rgba(255, 69, 58, 0.25);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 69, 58, 0.6);
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--status-crit);
             animation: float-toast 2s infinite alternate ease-in-out;
             box-shadow: 0 10px 30px rgba(255, 69, 58, 0.3);
         }
-        
+
         .target-lock {
-            display: none; align-self: center; margin: auto; border: 2px dashed rgba(10, 132, 255, 0.8);
-            border-radius: 20px; padding: 25px 50px; background: rgba(10, 132, 255, 0.1); backdrop-filter: blur(4px);
+            display: none;
+            align-self: center;
+            margin: auto;
+            border: 2px dashed rgba(10, 132, 255, 0.8);
+            border-radius: 20px;
+            padding: 25px 50px;
+            background: rgba(10, 132, 255, 0.1);
+            backdrop-filter: blur(4px);
             animation: pulse-lock 1.5s infinite alternate ease-in-out;
         }
-        .target-lock-text { font-weight: 800; font-size: 1.3rem; color: var(--status-info); letter-spacing: 0.08em; }
 
-        @keyframes float-toast { from { transform: translateY(0); } to { transform: translateY(-5px); } }
-        @keyframes pulse-lock { from { transform: scale(1); box-shadow: 0 0 0px rgba(10,132,255,0); } to { transform: scale(1.03); box-shadow: 0 0 30px rgba(10,132,255,0.4); } }
+        .target-lock-text {
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: var(--status-info);
+            letter-spacing: 0.08em;
+        }
 
-        .confidence-meter { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); display: flex; justify-content: space-between; padding: 0 10px; }
+        @keyframes float-toast {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes pulse-lock {
+            from {
+                transform: scale(1);
+                box-shadow: 0 0 0px rgba(10, 132, 255, 0);
+            }
+
+            to {
+                transform: scale(1.03);
+                box-shadow: 0 0 30px rgba(10, 132, 255, 0.4);
+            }
+        }
+
+        .confidence-meter {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            padding: 0 10px;
+        }
 
         /* ENVIRONMENTAL GAUGES */
-        .gauges-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; padding: 10px 0; }
-        .gauge { display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative; }
-        .gauge-svg { width: 100%; max-width: 85px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); }
-        .gauge-val { position: absolute; top: 38%; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 1rem; letter-spacing: -0.05em; }
-        .gauge-label { font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.05em; }
-        
+        .gauges-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .gauge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .gauge-svg {
+            width: 100%;
+            max-width: 85px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+        }
+
+        .gauge-val {
+            position: absolute;
+            top: 38%;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: -0.05em;
+        }
+
+        .gauge-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
         /* WORKER CARD */
         .worker-card {
             background: linear-gradient(135deg, rgba(10, 132, 255, 0.15) 0%, rgba(30, 30, 32, 0.6) 100%);
-            border: 1px solid rgba(10, 132, 255, 0.4); display: none; animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid rgba(10, 132, 255, 0.4);
+            display: none;
+            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
             box-shadow: 0 20px 40px rgba(10, 132, 255, 0.15);
         }
-        @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(50px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
 
         /* MAP */
-        .map-header-icons { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
-        .mine-map {
-            display: grid; gap: 3px; background: var(--map-bg, #0a0a0c); padding: 14px;
-            border-radius: 20px; width: 100%; aspect-ratio: 15 / 13;
-            border: 1px solid var(--border-color);
-            box-shadow: inset 0 0 50px var(--map-shadow, rgba(0,0,0,0.85));
+        .map-header-icons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
         }
+
+        .mine-map {
+            display: grid;
+            gap: 1px;
+            background: var(--map-bg, #0a0a0c);
+            padding: 8px;
+            border-radius: 20px;
+            width: 100%;
+            aspect-ratio: 38 / 23;
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 0 50px var(--map-shadow, rgba(0, 0, 0, 0.85));
+        }
+
         .map-cell {
-            border-radius: 5px; position: relative;
-            background: var(--cell-fog, rgba(255,255,255,0.02));
-            box-shadow: inset 0 0 0 1px var(--cell-fog-border, rgba(255,255,255,0.03));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.55rem; font-weight: 800;
+            border-radius: 2px;
+            position: relative;
+            background: var(--cell-fog, rgba(255, 255, 255, 0.02));
+            box-shadow: inset 0 0 0 1px var(--cell-fog-border, rgba(255, 255, 255, 0.03));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.4rem;
+            font-weight: 800;
             transition: all 0.35s ease;
         }
-        .cell-explored {                                        /* tunnel floor */
-            background: rgba(255,159,10,0.12);
-            box-shadow: inset 0 0 0 1px rgba(255,159,10,0.18);
+
+        .cell-explored {
+            /* tunnel floor */
+            background: rgba(255, 159, 10, 0.12);
+            box-shadow: inset 0 0 0 1px rgba(255, 159, 10, 0.18);
         }
+
         .cell-hazard {
             background: repeating-linear-gradient(45deg,
-                rgba(255,69,58,.35) 0 5px, rgba(255,69,58,.12) 5px 10px);
-            box-shadow: inset 0 0 0 1px rgba(255,69,58,.5), 0 0 12px rgba(255,69,58,.25);
+                    rgba(255, 69, 58, .35) 0 5px, rgba(255, 69, 58, .12) 5px 10px);
+            box-shadow: inset 0 0 0 1px rgba(255, 69, 58, .5), 0 0 12px rgba(255, 69, 58, .25);
         }
-        .cell-hazard::after { content: '⚠'; color: var(--status-crit); font-size: .7rem; }
+
+        .cell-hazard::after {
+            content: '⚠';
+            color: var(--status-crit);
+            font-size: .7rem;
+        }
+
         .cell-exit {
-            background: rgba(50,215,75,.18);
-            box-shadow: inset 0 0 0 1px rgba(50,215,75,.6), 0 0 12px rgba(50,215,75,.3);
+            background: rgba(50, 215, 75, .18);
+            box-shadow: inset 0 0 0 1px rgba(50, 215, 75, .6), 0 0 12px rgba(50, 215, 75, .3);
             color: var(--status-safe);
         }
-        .cell-path { background: rgba(255,159,10,.55); box-shadow: 0 0 10px rgba(255,159,10,.4); }
-        .cell-path::after { content: '▸'; color: #000; }
-        .cell-rover {
-            background: var(--accent-main); color: #000; z-index: 10; transform: scale(1.08);
-            box-shadow: 0 0 18px rgba(255,159,10,.9);
+
+        .cell-path {
+            background: rgba(255, 159, 10, .55);
+            box-shadow: 0 0 10px rgba(255, 159, 10, .4);
         }
-        .cell-rover::after { content: '▲'; font-size: .65rem; }
+
+        .cell-path::after {
+            content: '▸';
+            color: #000;
+        }
+
+        .cell-rover {
+            background: var(--accent-main);
+            color: #000;
+            z-index: 10;
+            transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(255, 159, 10, .9);
+        }
+
+        .cell-rover::after {
+            content: '▲';
+            font-size: .65rem;
+        }
+
         .cell-worker {
-            background: var(--status-info); z-index: 5; transform: scale(1.08);
-            box-shadow: 0 0 18px rgba(10,132,255,.9);
+            background: var(--status-info);
+            z-index: 5;
+            transform: scale(1.08);
+            box-shadow: 0 0 18px rgba(10, 132, 255, .9);
             animation: pulse-worker 1.2s infinite alternate ease-in-out;
         }
-        .cell-worker::after { content: '✚'; color: #fff; font-size: .6rem; }
-        
-        .cell-rock { background: var(--cell-rock, #17171b); box-shadow: inset 0 0 0 1px var(--cell-rock-border, rgba(255,255,255,0.04)); }
-        .cell-chamber { background: rgba(10,132,255,0.18) !important;
-                        box-shadow: inset 0 0 0 1px rgba(10,132,255,0.35); }
-        .panel-tag {
-            position: absolute; transform: translate(-50%,-50%); z-index: 20; pointer-events: none;
-            font: 700 0.6rem 'JetBrains Mono', monospace; letter-spacing: 0.25em;
-            color: var(--tag-color); background: var(--tag-bg);
-            padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border-color);
-            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+
+        .cell-worker::after {
+            content: '✚';
+            color: #fff;
+            font-size: .6rem;
         }
-        .cell-main { background: rgba(255,159,10,0.06); box-shadow: inset 0 0 0 1px rgba(255,159,10,0.12); }
-        .signal-degraded .map-cell { opacity: 0.3; }
-        .signal-degraded .cell-rover, .signal-degraded .cell-worker { opacity: 1; }
+
+        .cell-rock {
+            background: var(--cell-rock, #17171b);
+            box-shadow: inset 0 0 0 1px var(--cell-rock-border, rgba(255, 255, 255, 0.04));
+        }
+
+        .cell-chamber {
+            background: rgba(10, 132, 255, 0.18) !important;
+            box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.35);
+        }
+
+        .panel-tag {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            pointer-events: none;
+            font: 700 0.6rem 'JetBrains Mono', monospace;
+            letter-spacing: 0.25em;
+            color: var(--tag-color);
+            background: var(--tag-bg);
+            padding: 4px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        .cell-main {
+            background: rgba(255, 159, 10, 0.06);
+            box-shadow: inset 0 0 0 1px rgba(255, 159, 10, 0.12);
+        }
+
+        .signal-degraded .map-cell {
+            border-radius: 2px;
+            position: relative;
+            background: var(--cell-fog, rgba(255, 255, 255, 0.02));
+            box-shadow: inset 0 0 0 1px var(--cell-fog-border, rgba(255, 255, 255, 0.03));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.4rem;
+            font-weight: 800;
+            transition: all 0.35s ease;
+        }
+
+        .signal-degraded .cell-rover,
+        .signal-degraded .cell-worker {
+            opacity: 1;
+        }
 
         /* SCENARIO & CONTROLS */
-        .scenario-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .controls-grid button { padding: 20px; font-weight: 700; font-size: 1.1rem; border-radius: 16px; background: rgba(255,255,255,0.08); }
-        .controls-grid button:hover { background: rgba(255,255,255,0.15); }
-        .btn-stop { background: rgba(255,69,58,0.2) !important; color: var(--status-crit) !important; border-color: rgba(255,69,58,0.4) !important;}
-        .btn-stop:hover { background: rgba(255,69,58,0.3) !important; box-shadow: 0 4px 15px rgba(255,69,58,0.3); }
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .controls-grid button {
+            padding: 20px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .controls-grid button:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-stop {
+            background: rgba(255, 69, 58, 0.2) !important;
+            color: var(--status-crit) !important;
+            border-color: rgba(255, 69, 58, 0.4) !important;
+        }
+
+        .btn-stop:hover {
+            background: rgba(255, 69, 58, 0.3) !important;
+            box-shadow: 0 4px 15px rgba(255, 69, 58, 0.3);
+        }
 
         /* TIMELINE */
-        .timeline { display: flex; flex-direction: column; gap: 24px; padding-left: 16px; border-left: 2px solid rgba(255,255,255,0.08); margin-top: 15px; }
-        .time-step { position: relative; font-size: 0.85rem; color: var(--text-muted); font-weight: 500; transition: color 0.4s; }
-        .time-step::before { content: ''; position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: #1c1c1e; border: 2px solid var(--border-color); transition: all 0.4s; }
-        .time-step.active { color: var(--text-main); font-weight: 600; }
-        .time-step.active::before { background: var(--accent-main); border-color: var(--accent-main); box-shadow: 0 0 15px rgba(255, 159, 10, 0.6); }
-        .time-step.done { color: var(--status-safe); }
-        .time-step.done::before { background: var(--status-safe); border-color: var(--status-safe); }
-        
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            padding-left: 16px;
+            border-left: 2px solid rgba(255, 255, 255, 0.08);
+            margin-top: 15px;
+        }
+
+        .time-step {
+            position: relative;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            transition: color 0.4s;
+        }
+
+        .time-step::before {
+            content: '';
+            position: absolute;
+            left: -21px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #1c1c1e;
+            border: 2px solid var(--border-color);
+            transition: all 0.4s;
+        }
+
+        .time-step.active {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .time-step.active::before {
+            background: var(--accent-main);
+            border-color: var(--accent-main);
+            box-shadow: 0 0 15px rgba(255, 159, 10, 0.6);
+        }
+
+        .time-step.done {
+            color: var(--status-safe);
+        }
+
+        .time-step.done::before {
+            background: var(--status-safe);
+            border-color: var(--status-safe);
+        }
+
         /* TABLE & LOGS */
-        .events-table-wrapper { max-height: 180px; overflow-y: auto; border-radius: 16px; background: var(--table-bg); border: 1px solid var(--border-color); box-shadow: inset 0 4px 15px var(--table-shadow); scrollbar-width: thin; scrollbar-color: var(--text-muted) transparent; }
-        .events-table-wrapper::-webkit-scrollbar { width: 6px; }
-        .events-table-wrapper::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-        th { background: var(--table-th-bg); color: var(--text-muted); position: sticky; top: 0; font-weight: 600; backdrop-filter: blur(10px); z-index: 10; }
-        td { color: var(--text-main); }
-        td.highlight-detected { color: var(--accent-main); font-weight: 600; }
+        .events-table-wrapper {
+            max-height: 180px;
+            overflow-y: auto;
+            border-radius: 16px;
+            background: var(--table-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 4px 15px var(--table-shadow);
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-muted) transparent;
+        }
+
+        .events-table-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .events-table-wrapper::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--table-th-bg);
+            color: var(--text-muted);
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        td {
+            color: var(--text-main);
+        }
+
+        td.highlight-detected {
+            color: var(--accent-main);
+            font-weight: 600;
+        }
 
         /* MODAL */
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(25px); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: var(--panel-bg); padding: 3rem; border-radius: 32px; border: 1px solid var(--border-highlight); max-width: 600px; width: 100%; box-shadow: 0 40px 80px rgba(0,0,0,0.6); animation: modal-in 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes modal-in { from { transform: scale(0.95) translateY(20px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
-        .modal textarea { width: 100%; height: 280px; background: rgba(0,0,0,0.4); color: var(--text-main); border-radius: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; padding: 20px; border: 1px solid rgba(255,255,255,0.1); margin: 25px 0; outline: none; resize: none; box-shadow: inset 0 4px 15px rgba(0,0,0,0.2); }
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(25px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--border-highlight);
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+            animation: modal-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes modal-in {
+            from {
+                transform: scale(0.95) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 280px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--text-main);
+            border-radius: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 25px 0;
+            outline: none;
+            resize: none;
+            box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
 
         /* CHECKBOXES (Apple style) */
-        input[type="checkbox"] { appearance: none; width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid var(--text-muted); background: transparent; cursor: pointer; position: relative; top: 4px; margin-right: 6px; transition: all 0.2s ease; }
-        input[type="checkbox"]:checked { background: var(--accent-main); border-color: var(--accent-main); }
-        input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #000; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        input[type="checkbox"] {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            border: 1.5px solid var(--text-muted);
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            top: 4px;
+            margin-right: 6px;
+            transition: all 0.2s ease;
+        }
+
+        input[type="checkbox"]:checked {
+            background: var(--accent-main);
+            border-color: var(--accent-main);
+        }
+
+        input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 2px;
+            width: 4px;
+            height: 8px;
+            border: solid #000;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
 
         @media (max-width: 1024px) {
-            .dashboard { grid-template-columns: 1fr; height: auto; overflow: visible; }
-            body { height: auto; overflow-y: auto; }
+            .dashboard {
+                grid-template-columns: 1fr;
+                height: auto;
+                overflow: visible;
+            }
+
+            body {
+                height: auto;
+                overflow-y: auto;
+            }
         }
     </style>
 </head>
+
 <body class="state-NORMAL">
 
     <div class="ticker-wrap">
@@ -360,34 +922,42 @@
         <h1><span style="color:var(--accent-main)">SYS.OP</span> SURFACE CONTROL</h1>
         <div class="header-controls" style="display:flex; align-items:center; gap:15px;">
             <button class="btn-toggle" onclick="document.body.classList.toggle('light-mode')">LIGHT / DARK</button>
-            <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;"><input type="checkbox" id="audio-toggle"> [AUDIO]</label>
+            <label style="font-size:0.75rem; color:var(--text-muted); display:flex; align-items:center;"><input
+                    type="checkbox" id="audio-toggle"> [AUDIO]</label>
             <button class="btn-toggle active" id="btn-mode-toggle" onclick="toggleAutoMode()">MANUAL MODE</button>
             <button class="export-btn" onclick="openReportModal()">Export Data</button>
-            <div class="status-badge" id="system-status" style="background: rgba(50,215,75,0.15); color: var(--status-safe);">SYSTEM NORMAL</div>
+            <div class="status-badge" id="system-status"
+                style="background: rgba(50,215,75,0.15); color: var(--status-safe);">SYSTEM NORMAL</div>
         </div>
     </header>
 
     <div class="dashboard">
-        
+
         <!-- LEFT COLUMN -->
         <div class="col-left">
-            
+
             <!-- PANEL A: DUAL VISION -->
             <div class="panel">
                 <div class="panel-header">
                     <h2>Live Vision Hub</h2>
                     <div class="vision-tabs">
-                        <button class="vision-tab active" onclick="setVisionMode('rgb')" id="tab-rgb">RGB / YOLOv8</button>
+                        <button class="vision-tab active" onclick="setVisionMode('rgb')" id="tab-rgb">RGB /
+                            YOLOv8</button>
                         <button class="vision-tab" onclick="setVisionMode('thermal')" id="tab-thermal">Thermal</button>
                     </div>
                 </div>
                 <div class="video-wrapper" id="video-wrapper">
-                    <img id="real-video-feed" src="/video_feed" style="display:none; width:100%; height:100%; object-fit:cover; transform: rotate(180deg);" alt="Live Camera Stream">
+                    <img id="real-video-feed" src="/video_feed"
+                        style="display:none; width:100%; height:100%; object-fit:cover;" alt="Live Camera Stream">
                     <canvas id="video-feed"></canvas>
                     <div class="hud-overlay">
                         <div class="hud-top">
-                            <span style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">REC</span>
-                            <span id="thermal-badge" style="display:none; background:var(--status-crit); color:#fff; padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">HEAT 36.4°C</span>
+
+                            <span
+                                style="background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">REC</span>
+                            <span id="thermal-badge"
+                                style="display:none; background:var(--status-crit); color:#fff; padding:4px 8px; border-radius:6px; font-size:0.7rem; font-weight:600;">HEAT
+                                36.4°C</span>
                         </div>
                         <div class="hud-toast" id="hud-toast">PATH BLOCKED BY HAZARDS!</div>
                         <div class="target-lock" id="target-lock">
@@ -403,38 +973,60 @@
 
             <!-- PANEL B: ENVIRONMENTAL BAY -->
             <div class="panel">
-                <div class="panel-header"><h2>Environmental Telemetry</h2></div>
+                <div class="panel-header">
+                    <h2>Environmental Telemetry</h2>
+                </div>
                 <div class="gauges-container" id="gauges-container"></div>
             </div>
-            
+
             <!-- REAL METRIC CARDS -->
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px;">
                 <div class="panel" style="padding:20px; align-items:center; justify-content:center; gap:8px;">
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">DISTANCE</span>
-                    <span style="font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:800; color:var(--text-main);" id="m-dist">-- cm</span>
+                    <span
+                        style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">DISTANCE</span>
+                    <span
+                        style="font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:800; color:var(--text-main);"
+                        id="m-dist">-- cm</span>
                 </div>
                 <div class="panel" style="padding:20px; align-items:center; justify-content:center; gap:8px;">
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">NETWORK</span>
-                    <span style="font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:800; color:var(--text-main);" id="m-rssi">-- dBm</span>
+                    <span
+                        style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">NETWORK</span>
+                    <span
+                        style="font-family:'JetBrains Mono', monospace; font-size:1.6rem; font-weight:800; color:var(--text-main);"
+                        id="m-rssi">-- dBm</span>
                 </div>
                 <div class="panel" style="padding:20px; align-items:center; justify-content:center; gap:8px;">
-                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">AI DECISION</span>
-                    <span style="font-family:'Inter', sans-serif; font-size:1.4rem; font-weight:800; color:var(--accent-main);" id="m-action">--</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700; letter-spacing:0.1em;">AI
+                        DECISION</span>
+                    <span
+                        style="font-family:'Inter', sans-serif; font-size:1.4rem; font-weight:800; color:var(--accent-main);"
+                        id="m-action">--</span>
                 </div>
             </div>
 
             <!-- HISTORY CHART -->
             <div class="panel">
-                <div class="panel-header"><h2>Atmospheric History</h2></div>
+                <div class="panel-header">
+                    <h2>Atmospheric History</h2>
+                </div>
                 <div style="height: 120px;"><canvas id="historyChart"></canvas></div>
             </div>
 
             <!-- AI LOG TABLE -->
             <div class="panel">
-                <div class="panel-header"><h2>Event Log</h2></div>
+                <div class="panel-header">
+                    <h2>Event Log</h2>
+                </div>
                 <div class="events-table-wrapper">
                     <table>
-                        <thead><tr><th>TIME</th><th>SYSTEM</th><th>EVENT</th><th>ACTION</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>TIME</th>
+                                <th>SYSTEM</th>
+                                <th>EVENT</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
                         <tbody id="events-table-body"></tbody>
                     </table>
                 </div>
@@ -444,32 +1036,52 @@
 
         <!-- RIGHT COLUMN -->
         <div class="col-right">
-            
+
             <!-- PANEL E: DEMO SCENARIO ENGINE -->
             <div class="panel">
-                <div class="panel-header"><h2>Mission Scenarios</h2></div>
-                <div class="scenario-grid">
-                    <button class="btn-scenario" aria-label="Trigger Gas Leak Scenario" onclick="triggerScenario(1)">[1] Gas Leak</button>
-                    <button class="btn-scenario" aria-label="Trigger Structural Collapse Scenario" onclick="triggerScenario(2)">[2] Structure</button>
-                    <button class="btn-scenario" aria-label="Trigger Rescue Scenario" onclick="triggerScenario(3)">[3] Rescue</button>
-                    <button class="btn-scenario" aria-label="Reset System" onclick="triggerScenario(0)" style="background:rgba(255,69,58,0.2); color:var(--status-crit); border-color:var(--status-crit)">[ESC] Reset</button>
+                <div class="panel-header">
+                    <h2>Mission Scenarios</h2>
                 </div>
-                <label style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px;"><input type="checkbox" id="chk-sim" onchange="toggleSimMode()"> Offline Sim Mode (No Backend Required)</label>
+                <div class="scenario-grid">
+                    <button class="btn-scenario" aria-label="Trigger Gas Leak Scenario" onclick="triggerScenario(1)">[1]
+                        Gas Leak</button>
+                    <button class="btn-scenario" aria-label="Trigger Structural Collapse Scenario"
+                        onclick="triggerScenario(2)">[2] Structure</button>
+                    <button class="btn-scenario" aria-label="Trigger Rescue Scenario" onclick="triggerScenario(3)">[3]
+                        Rescue</button>
+                    <button class="btn-scenario" aria-label="Reset System" onclick="triggerScenario(0)"
+                        style="background:rgba(255,69,58,0.2); color:var(--status-crit); border-color:var(--status-crit)">[ESC]
+                        Reset</button>
+                </div>
+                <label
+                    style="font-size:0.7rem; color:var(--text-muted); display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px;"><input
+                        type="checkbox" id="chk-sim" onchange="toggleSimMode()"> Offline Sim Mode (No Backend
+                    Required)</label>
             </div>
-            
+
 
 
             <!-- PANEL C: WORKER TRACKER -->
             <div class="panel worker-card" id="worker-card">
                 <div class="panel-header" style="border-bottom:none; margin-bottom:0;">
                     <h2 style="color:var(--status-info); font-size:0.9rem;">Worker #07 Located</h2>
-                    <span style="font-size:0.65rem; background:var(--status-warn); color:#000; padding:4px 8px; border-radius:10px; font-weight:700;">UNRESPONSIVE</span>
+                    <span
+                        style="font-size:0.65rem; background:var(--status-warn); color:#000; padding:4px 8px; border-radius:10px; font-weight:700;">UNRESPONSIVE</span>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.8rem; color:var(--text-muted); margin-top:10px;">
-                    <div>Distance: <span id="w-dist" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">-- m</span></div>
-                    <div>Location: <span id="w-loc" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">--</span></div>
-                    <div>Local CH4: <span id="w-gas" style="color:var(--status-crit); font-weight:600; font-family:'JetBrains Mono';">--%</span></div>
-                    <div>Time Elapsed: <span id="w-time" style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">00:00</span></div>
+                <div
+                    style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.8rem; color:var(--text-muted); margin-top:10px;">
+                    <div>Distance: <span id="w-dist"
+                            style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">-- m</span>
+                    </div>
+                    <div>Location: <span id="w-loc"
+                            style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">--</span>
+                    </div>
+                    <div>Local CH4: <span id="w-gas"
+                            style="color:var(--status-crit); font-weight:600; font-family:'JetBrains Mono';">--%</span>
+                    </div>
+                    <div>Time Elapsed: <span id="w-time"
+                            style="color:var(--text-main); font-weight:600; font-family:'JetBrains Mono';">00:00</span>
+                    </div>
                 </div>
             </div>
 
@@ -482,16 +1094,41 @@
                     <div class="map-header-icons">
                         <span id="map-wifi" style="color:var(--status-info)">[WIFI] --dBm</span>
                         <span id="map-bat" style="color:var(--status-safe)">[BAT] --%</span>
-                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat"> Heat</label>
-                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal" checked> Signal</label>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-heat">
+                            Heat</label>
+                        <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" id="chk-signal"
+                                checked> Signal</label>
                     </div>
                 </div>
                 <div style="position:relative">
                     <div class="mine-map" id="mine-map"></div>
-                    <span class="panel-tag" style="top:27%; left:23.3%;">PANEL A</span>
-                    <span class="panel-tag" style="top:27%; left:76.7%;">PANEL B</span>
-                    <span class="panel-tag" style="top:73%; left:23.3%;">PANEL C</span>
-                    <span class="panel-tag" style="top:73%; left:76.7%;">PANEL D</span>
+                    <svg id="overlay-svg" class="overlay-svg" viewBox="0 0 380 230" preserveAspectRatio="none">
+                        <g class="incident">
+                            <path class="zone-amber"
+                                d="M14,10 L200,8 L206,62 L210,120 L204,152 L120,152 L60,158 L16,148 L10,90 Z" />
+                            <path class="zone-flame"
+                                d="M22,14 L58,10 L96,16 L132,10 L168,15 L196,22 L190,48 L196,78 L188,104 L192,116 L150,112 L108,120 L64,114 L26,118 L14,88 L20,52 Z" />
+                            <circle class="victim" cx="85" cy="105" r="2.5" />
+                            <circle class="victim" cx="105" cy="112" r="2.5" />
+                            <circle class="victim" cx="125" cy="104" r="2.5" />
+                            <circle class="victim" cx="145" cy="112" r="2.5" />
+                            <circle class="victim" cx="165" cy="106" r="2.5" />
+                            <line class="leader" x1="60" y1="174" x2="90" y2="128" /><text x="14" y="182">SEALS</text>
+                            <line class="leader" x1="150" y1="174" x2="96" y2="137" /><text x="96" y="182">EXPLOSION
+                                ORIGIN</text>
+                            <line class="leader" x1="200" y1="164" x2="152" y2="112" /><text x="172" y="172">5
+                                VICTIMS</text>
+                            <line class="leader" x1="30" y1="164" x2="42" y2="148" /><text x="12"
+                                y="172">SURVIVOR</text>
+                            <text x="14" y="30">EXTENT OF FLAMES</text>
+                            <text x="215" y="46">AFFECTED AREA</text>
+                        </g>
+                        <polyline class="escape-primary" points="15,195 355,195 365,215" />
+                        <polyline class="escape-alt" points="5,55 5,135" />
+                        <text x="245" y="205">PRIMARY ESCAPEWAY</text>
+                        <text transform="rotate(-90 8 95)" x="8" y="95">ALT. ESCAPEWAY</text>
+                        <text x="300" y="182">MAINS</text>
+                    </svg>
                 </div>
                 <div style="font-size:0.65rem; color:var(--text-muted); text-align:center; margin-top:10px;">
                     SHORTCUTS: [W/A/S/D] Move | [SPACE] Stop | [1-3] Scenarios | [ESC] Reset
@@ -500,19 +1137,27 @@
 
             <!-- MANUAL CONTROLS -->
             <div class="panel" id="manual-panel">
-                <div class="panel-header"><h2>Manual Override</h2></div>
+                <div class="panel-header">
+                    <h2>Manual Override</h2>
+                </div>
                 <div class="controls-grid">
                     <button style="grid-column:2" aria-label="Move Forward" onclick="sendCommand('forward')">W</button>
-                    <button style="grid-column:1; grid-row:2" aria-label="Move Left" onclick="sendCommand('left')">A</button>
-                    <button class="btn-stop" style="grid-column:2; grid-row:2" aria-label="Stop Rover" onclick="sendCommand('stop')">STOP</button>
-                    <button style="grid-column:3; grid-row:2" aria-label="Move Right" onclick="sendCommand('right')">D</button>
-                    <button style="grid-column:2; grid-row:3" aria-label="Move Backward" onclick="sendCommand('backward')">S</button>
+                    <button style="grid-column:1; grid-row:2" aria-label="Move Left"
+                        onclick="sendCommand('left')">A</button>
+                    <button class="btn-stop" style="grid-column:2; grid-row:2" aria-label="Stop Rover"
+                        onclick="sendCommand('stop')">STOP</button>
+                    <button style="grid-column:3; grid-row:2" aria-label="Move Right"
+                        onclick="sendCommand('right')">D</button>
+                    <button style="grid-column:2; grid-row:3" aria-label="Move Backward"
+                        onclick="sendCommand('backward')">S</button>
                 </div>
             </div>
 
             <!-- PANEL F: TIMELINE -->
             <div class="panel">
-                <div class="panel-header"><h2>Mission Timeline</h2></div>
+                <div class="panel-header">
+                    <h2>Mission Timeline</h2>
+                </div>
                 <div class="timeline" id="mission-timeline">
                     <div class="time-step done">Deployed</div>
                     <div class="time-step active" id="ts-explore">Exploring Sector</div>
@@ -530,10 +1175,12 @@
     <div class="modal" id="reportModal">
         <div class="modal-content">
             <h2 style="font-size: 1.2rem; color:var(--text-main); margin-bottom:0.5rem;">Incident Report Ready</h2>
-            <p style="font-size: 0.85rem; color:var(--text-muted); margin-bottom: 1rem;">The system has logged all critical telemetry for investigation.</p>
+            <p style="font-size: 0.85rem; color:var(--text-muted); margin-bottom: 1rem;">The system has logged all
+                critical telemetry for investigation.</p>
             <textarea id="reportData" readonly></textarea>
             <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button style="padding:10px 20px;" onclick="document.getElementById('reportModal').style.display='none'">Dismiss</button>
+                <button style="padding:10px 20px;"
+                    onclick="document.getElementById('reportModal').style.display='none'">Dismiss</button>
                 <button class="export-btn" onclick="downloadReport()">Download .TXT</button>
             </div>
         </div>
@@ -543,56 +1190,64 @@
         /* ========================================================
            1. GLOBALS & SOCKET INIT
            ======================================================== */
-        let SIM_MODE = false; 
+        let SIM_MODE = false;
         let socket = null;
         try {
             socket = io();
-        } catch(e) {
+        } catch (e) {
             console.warn('Backend offline — SIM fallback');
         }
-        
+
         let roverPos = [2, 2];
         let workerPos = null;
         let pastPaths = new Set(["2,2"]);
-                /* # = pillar (rock) | . = gallery | C = chamber | X = hazard | E = shaft exit */
+        /* # = pillar (rock) | . = gallery | C = chamber | X = hazard | E = shaft exit */
         const MINE_LAYOUT = [
-            "E.............E",  // 0  top air-gallery (perimeter)
-            ".##.##...##.##.",  // 1  PANEL A  |  PANEL B
-            ".##.##...##.##.",  // 2
-            "...............",  // 3  bord inside panels
-            ".##.##...##.##.",  // 4
-            ".##.CC...##.##.",  // 5  chamber carved into Panel A pillar
-            "...............",  // 6  MAIN CROSS-CUT (E-W trunk)
-            ".##.##...##.##.",  // 7  PANEL C  |  PANEL D
-            ".##.##...CC.##.",  // 8  chamber carved into Panel D pillar
-            "...............",  // 9
-            ".##.##...##.##.",  // 10
-            ".##.##...##.##.",  // 11
-            "E.....X.......E"   // 12 bottom air-gallery + gas hazard
+            "....E...........E..........E..........",  // 0  top perimeter + E3/E4/E5
+            ".###.###.###.###.###.##.##.##.##.##.#.",  // 1  DISTRICT 1 | DISTRICT 2
+            ".###.###.###.###.###.##.##.##.##.##.#.",  // 2
+            "....................#.................",  // 3  cross-cuts
+            ".###.....###.###.####.##.##.##........",  // 4  extracted pillar D1, partial edge D2
+            ".###.###.CCC.###.####.##.##.##........",  // 5  chamber
+            "......................................",  // 6  main cross-cut (connects districts)
+            ".###.###.###.###.###.##.##.##.##.##.#.",  // 7
+            ".###.###.###.....####.##.##.##.##.##.#",  // 8
+            "......................................",  // 9
+            ".###.###.###.###.###.##.##.##.##.##.#.",  // 10
+            ".###.###.###.###.###.##.##.##.##.##.#.",  // 11
+            ".#######SSSS##########################",  // 12 SEALS (barrier)
+            "E........O............................",  // 13 INTAKE 1 — explosion origin (O)
+            ".######..######..####.#####..#####..#.",  // 14 mains pillar block
+            "......................................",  // 15 INTAKE 2 — "5 victims" zone
+            ".######..######..####.#####..#####..#.",  // 16
+            "......................................",  // 17 TRACK ENTRY
+            ".######..######..####.#####..#####..#.",  // 18
+            "......................................",  // 19 INTAKE 3 — primary escapeway route
+            ".######..######..####.######..#######.",  // 20 partial mains (right side)
+            "...................................E..",  // 21 bottom entry → PRIMARY EXIT
+            ".####################################."   // 22 bottom barrier
         ];
-        let mapW = 15, mapH = 13;
+        let mapW = 38, mapH = 23;
         let exits = [];
 
         function loadMineLayout() {
-            gridData = MINE_LAYOUT.map(row => row.split('').map(ch =>
-                ch === '#' ? 0 : ch === 'X' ? 2 : ch === 'C' ? 3 : 1
-            ));
+            gridData = MINE_LAYOUT.map(r => r.split('').map(ch =>
+                ch === '#' ? 0 : ch === 'S' ? 4 : ch === 'C' ? 3 : 1));
             exits = [];
-            MINE_LAYOUT.forEach((row, y) => row.split('').forEach((ch, x) => {
-                if (ch === 'E') exits.push([x, y]);
-            }));
-            roverPos = [exits[0][0], exits[0][1]];
-            pastPaths = new Set([`${roverPos[0]},${roverPos[1]}`]);
+            MINE_LAYOUT.forEach((row, y) => [...row].forEach((ch, x) => { if (ch === 'E') exits.push([x, y]); }));
+            roverPos = [4, 0];                       // deploy at top portal
+            pastPaths = new Set(['4,0']);
+            workerPos = null; rescuePath = [];
         }
         let mapSize = 10;
         let commsDegraded = false;
-        
+
         let activeScenario = 0;
         let scenarioTick = 0;
         let scenarioInterval = null;
         let rescuePath = [];
 
-        let eventLog = []; 
+        let eventLog = [];
         let workerTimer = null;
         let workerSeconds = 0;
         let isAutoMode = false;
@@ -606,11 +1261,11 @@
         gridData[2][5] = 2; gridData[3][5] = 2; gridData[7][3] = 2; gridData[8][8] = 2; // Hazards
 
         const GAUGES = [
-            { id: 'ch4', label: 'CH4 %', max: 2.0, zones: [{pct:0.5, c:'var(--status-safe)'}, {pct:0.625, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 1.25 },
-            { id: 'co', label: 'CO ppm', max: 100, zones: [{pct:0.25, c:'var(--status-safe)'}, {pct:0.5, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 50 },
-            { id: 'o2', label: 'O2 %', max: 25, zones: [{pct:0.75, c:'var(--status-crit)'}, {pct:0.8, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-safe)'}], critLow: 19.5 },
-            { id: 'temp', label: 'TEMP °C', max: 60, zones: [{pct:0.6, c:'var(--status-safe)'}, {pct:0.75, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 45 },
-            { id: 'hum', label: 'HUM %', max: 100, zones: [{pct:0.8, c:'var(--status-safe)'}, {pct:0.9, c:'var(--status-warn)'}, {pct:1.0, c:'var(--status-crit)'}], crit: 90 }
+            { id: 'ch4', label: 'CH4 %', max: 2.0, zones: [{ pct: 0.5, c: 'var(--status-safe)' }, { pct: 0.625, c: 'var(--status-warn)' }, { pct: 1.0, c: 'var(--status-crit)' }], crit: 1.25 },
+            { id: 'co', label: 'CO ppm', max: 100, zones: [{ pct: 0.25, c: 'var(--status-safe)' }, { pct: 0.5, c: 'var(--status-warn)' }, { pct: 1.0, c: 'var(--status-crit)' }], crit: 50 },
+            { id: 'o2', label: 'O2 %', max: 25, zones: [{ pct: 0.75, c: 'var(--status-crit)' }, { pct: 0.8, c: 'var(--status-warn)' }, { pct: 1.0, c: 'var(--status-safe)' }], critLow: 19.5 },
+            { id: 'temp', label: 'TEMP °C', max: 60, zones: [{ pct: 0.6, c: 'var(--status-safe)' }, { pct: 0.75, c: 'var(--status-warn)' }, { pct: 1.0, c: 'var(--status-crit)' }], crit: 45 },
+            { id: 'hum', label: 'HUM %', max: 100, zones: [{ pct: 0.8, c: 'var(--status-safe)' }, { pct: 0.9, c: 'var(--status-warn)' }, { pct: 1.0, c: 'var(--status-crit)' }], crit: 90 }
         ];
 
         /* ========================================================
@@ -622,13 +1277,13 @@
             renderGauges();
             initChart();
             requestAnimationFrame(drawProceduralVideo);
-            setInterval(() => { if(SIM_MODE) updateTelemetryTick(); }, 1000);
+            setInterval(() => { if (SIM_MODE) updateTelemetryTick(); }, 1000);
         }
 
         function toggleSimMode() {
             SIM_MODE = document.getElementById('chk-sim').checked;
             logEvent("System", SIM_MODE ? "Switched to Local MOCK Engine" : "Switched to Live HARDWARE Telemetry", "INFO");
-            
+
             if (SIM_MODE) {
                 document.getElementById('video-feed').style.display = 'block';
                 document.getElementById('real-video-feed').style.display = 'none';
@@ -643,31 +1298,31 @@
            ======================================================== */
         if (socket) {
             socket.on('telemetry_update', (data) => {
-                if(SIM_MODE) return; 
-                
+                if (SIM_MODE) return;
+
                 const sensor = data.sensor || {};
                 const ai = data.ai_report || {};
                 const map = data.map || {};
 
-                sysData.ch4  = sensor.ch4  ?? (sensor.gas_detected ? 1.5 : 0.1);
-                sysData.co   = sensor.co   ?? sysData.co;
-                sysData.o2   = sensor.o2   ?? sysData.o2;
+                sysData.ch4 = sensor.ch4 ?? (sensor.gas_detected ? 1.5 : 0.1);
+                sysData.co = sensor.co ?? sysData.co;
+                sysData.o2 = sensor.o2 ?? sysData.o2;
                 sysData.temp = sensor.temp ?? sysData.temp;
-                sysData.hum  = sensor.hum  ?? sysData.hum;
+                sysData.hum = sensor.hum ?? sysData.hum;
                 sysData.dist = sensor.distance_cm ?? sysData.dist;
                 sysData.rssi = sensor.rssi ?? sysData.rssi;
-                
-                if(map.grid) gridData = map.grid;
-                if(map.rover_pos) roverPos = map.rover_pos;
+
+                if (map.grid) gridData = map.grid;
+                if (map.rover_pos) roverPos = map.rover_pos;
                 pastPaths.add(`${roverPos[0]},${roverPos[1]}`);
-                
+
                 document.getElementById('m-dist').innerText = sysData.dist + ' cm';
                 document.getElementById('m-rssi').innerText = sysData.rssi + ' dBm';
                 document.getElementById('m-action').innerText = ai.suggested_action ? ai.suggested_action.toUpperCase() : '--';
-                
+
                 setSystemState(ai.status || 'NORMAL');
-                
-                if(ai.event) logEvent(ai.event.trigger, ai.event.detected, ai.event.action);
+
+                if (ai.event) logEvent(ai.event.trigger, ai.event.detected, ai.event.action);
 
                 renderGauges();
                 renderMap();
@@ -692,49 +1347,49 @@
         }
 
         function sendCommand(action) {
-            if(isAutoMode) return;
+            if (isAutoMode) return;
             lastManualMove = Date.now(); // Guard idle patrol
-            
+
             // Always move rover on the map (works with or without backend)
             let nx = roverPos[0], ny = roverPos[1];
-            if(action==='forward') ny--;
-            if(action==='backward') ny++;
-            if(action==='right') nx++;
-            if(action==='left') nx--;
-            
-            if(!isCellBlocked(nx, ny)) {
+            if (action === 'forward') ny--;
+            if (action === 'backward') ny++;
+            if (action === 'right') nx++;
+            if (action === 'left') nx--;
+
+            if (!isCellBlocked(nx, ny)) {
                 roverPos = [nx, ny];
                 pastPaths.add(`${nx},${ny}`);
                 renderMap();
             } else {
                 showToast("CELL BLOCKED!");
             }
-            
+
             fetch('/command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: action })
-            }).catch(() => {});
+            }).catch(() => { });
         }
-        
+
         document.addEventListener('keydown', (e) => {
-            if(e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
-            if(isAutoMode) return;
-            
-            if(['w','a','s','d',' '].includes(e.key.toLowerCase())) {
-                if(e.target === document.body) e.preventDefault(); 
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            if (isAutoMode) return;
+
+            if (['w', 'a', 's', 'd', ' '].includes(e.key.toLowerCase())) {
+                if (e.target === document.body) e.preventDefault();
             }
-            
-            if(e.key === 'w' || e.key === 'W') sendCommand('forward');
-            if(e.key === 's' || e.key === 'S') sendCommand('backward');
-            if(e.key === 'a' || e.key === 'A') sendCommand('left');
-            if(e.key === 'd' || e.key === 'D') sendCommand('right');
-            if(e.key === ' ') sendCommand('stop');
-            
-            if(e.key === '1') triggerScenario(1);
-            if(e.key === '2') triggerScenario(2);
-            if(e.key === '3') triggerScenario(3);
-            if(e.key === 'Escape') triggerScenario(0);
+
+            if (e.key === 'w' || e.key === 'W') sendCommand('forward');
+            if (e.key === 's' || e.key === 'S') sendCommand('backward');
+            if (e.key === 'a' || e.key === 'A') sendCommand('left');
+            if (e.key === 'd' || e.key === 'D') sendCommand('right');
+            if (e.key === ' ') sendCommand('stop');
+
+            if (e.key === '1') triggerScenario(1);
+            if (e.key === '2') triggerScenario(2);
+            if (e.key === '3') triggerScenario(3);
+            if (e.key === 'Escape') triggerScenario(0);
         });
 
         /* ========================================================
@@ -744,7 +1399,7 @@
         const vCtx = vCanvas.getContext('2d');
         let vPhase = 0;
         let aiBoxAlpha = 0;
-        
+
         function drawProceduralVideo() {
             vCanvas.width = vCanvas.clientWidth || 800;
             vCanvas.height = vCanvas.clientHeight || 450;
@@ -752,13 +1407,13 @@
             let t = Date.now() / 1000;
 
             // drifting vanishing point = camera slowly moving
-            let vx = w/2 + Math.sin(t*0.3)*30;
-            let vy = h/2 + Math.cos(t*0.2)*15;
+            let vx = w / 2 + Math.sin(t * 0.3) * 30;
+            let vy = h / 2 + Math.cos(t * 0.2) * 15;
 
             const isLight = document.body.classList.contains('light-mode');
-            
+
             // ambient glow instead of black void
-            let grd = vCtx.createRadialGradient(vx, vy, 30, vx, vy, w*0.8);
+            let grd = vCtx.createRadialGradient(vx, vy, 30, vx, vy, w * 0.8);
             if (isLight) {
                 grd.addColorStop(0, "#d1d1d6");
                 grd.addColorStop(0.4, "#e5e5ea");
@@ -774,46 +1429,46 @@
             // tunnel walls converging to vanishing point
             vCtx.strokeStyle = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)';
             vCtx.lineWidth = 2;
-            [[0,0],[w,0],[0,h],[w,h]].forEach(([cx,cy]) => {
-                vCtx.beginPath(); vCtx.moveTo(cx,cy); vCtx.lineTo(vx,vy); vCtx.stroke();
+            [[0, 0], [w, 0], [0, h], [w, h]].forEach(([cx, cy]) => {
+                vCtx.beginPath(); vCtx.moveTo(cx, cy); vCtx.lineTo(vx, vy); vCtx.stroke();
             });
 
             // floor ribs rushing toward camera (movement illusion)
-            for(let i=0;i<10;i++){
-                let z = (t*0.25 + i/10) % 1;
-                let y = vy + (h - vy) * z*z;
-                vCtx.strokeStyle = isLight ? `rgba(255,149,0,${0.1 + z*0.2})` : `rgba(255,159,10,${0.05 + z*0.15})`;
-                vCtx.lineWidth = 1 + z*3;
+            for (let i = 0; i < 10; i++) {
+                let z = (t * 0.25 + i / 10) % 1;
+                let y = vy + (h - vy) * z * z;
+                vCtx.strokeStyle = isLight ? `rgba(255,149,0,${0.1 + z * 0.2})` : `rgba(255,159,10,${0.05 + z * 0.15})`;
+                vCtx.lineWidth = 1 + z * 3;
                 vCtx.beginPath(); vCtx.moveTo(0, y); vCtx.lineTo(w, y); vCtx.stroke();
             }
 
             // camera HUD text
             vCtx.fillStyle = isLight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.5)';
             vCtx.font = "12px 'JetBrains Mono'";
-            vCtx.fillText("CAM-01  TUNNEL-A", 15, h-15);
-            vCtx.fillText(new Date().toLocaleTimeString(), w-110, h-15);
-            
+            vCtx.fillText("CAM-01  TUNNEL-A", 15, h - 15);
+            vCtx.fillText(new Date().toLocaleTimeString(), w - 110, h - 15);
+
             // Thermal Blob
-            if(isThermal && activeScenario === 3 && scenarioTick > 20) {
-                let heatGrd = vCtx.createRadialGradient(w/2, h/2, 10, w/2, h/2, 80);
+            if (isThermal && activeScenario === 3 && scenarioTick > 20) {
+                let heatGrd = vCtx.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, 80);
                 heatGrd.addColorStop(0, "rgba(255, 255, 255, 0.9)");
                 heatGrd.addColorStop(0.5, "rgba(255, 0, 0, 0.5)");
                 heatGrd.addColorStop(1, "rgba(0, 0, 0, 0)");
                 vCtx.fillStyle = heatGrd;
-                vCtx.fillRect(w/2 - 100, h/2 - 100, 200, 200);
+                vCtx.fillRect(w / 2 - 100, h / 2 - 100, 200, 200);
             }
 
             // AI Bounding Box
-            if(activeScenario === 3 && scenarioTick > 20 && !isThermal) {
+            if (activeScenario === 3 && scenarioTick > 20 && !isThermal) {
                 aiBoxAlpha = Math.min(1, aiBoxAlpha + 0.05);
                 vCtx.strokeStyle = `rgba(255, 69, 58, ${aiBoxAlpha})`;
                 vCtx.lineWidth = 3;
-                vCtx.strokeRect(w/2 - 50, h/2 - 80, 100, 160);
+                vCtx.strokeRect(w / 2 - 50, h / 2 - 80, 100, 160);
                 vCtx.fillStyle = `rgba(255, 69, 58, ${aiBoxAlpha})`;
                 vCtx.font = "14px 'JetBrains Mono'";
-                vCtx.fillText(`PERSON ${confidence}%`, w/2 - 50, h/2 - 90);
+                vCtx.fillText(`PERSON ${confidence}%`, w / 2 - 50, h / 2 - 90);
             } else { aiBoxAlpha = 0; }
-            
+
             requestAnimationFrame(drawProceduralVideo);
         }
 
@@ -823,16 +1478,16 @@
         function renderGauges() {
             const container = document.getElementById('gauges-container');
             container.innerHTML = '';
-            
+
             GAUGES.forEach(g => {
                 let val = sysData[g.id];
                 let pct = Math.max(0, Math.min(1, val / g.max));
-                if(g.id==='o2') pct = val/g.max;
+                if (g.id === 'o2') pct = val / g.max;
 
-                let strokeColor = 'var(--text-main)'; 
+                let strokeColor = 'var(--text-main)';
                 if (g.crit && val > g.crit) strokeColor = 'var(--status-crit)';
                 if (g.critLow && val < g.critLow) strokeColor = 'var(--status-warn)';
-                
+
                 // SVG Draw zones (Green/Amber/Red base via dash offsets)
                 let bgHtml = '';
                 let startPct = 0;
@@ -843,7 +1498,7 @@
                     bgHtml += `<path d="M 10 45 A 40 40 0 0 1 90 45" fill="none" stroke="${z.c}" opacity="0.5" stroke-width="8" stroke-dasharray="${len} 200" stroke-dashoffset="-${off}" stroke-linecap="butt"/>`;
                     startPct = z.pct;
                 });
-                
+
                 container.innerHTML += `
                     <div class="gauge">
                         <svg class="gauge-svg" viewBox="0 0 100 50">
@@ -855,20 +1510,20 @@
                     </div>
                 `;
             });
-            
-            document.getElementById('header-ticker').innerText = 
-                `STATUS: ${activeScenario===0?'NOMINAL':'EMERGENCY'} // CH4: ${sysData.ch4.toFixed(2)}% // CO: ${sysData.co.toFixed(0)}ppm // O2: ${sysData.o2.toFixed(1)}% // TEMP: ${sysData.temp.toFixed(1)}°C // HUM: ${sysData.hum.toFixed(0)}% // RSSI: ${sysData.rssi.toFixed(1)}dBm // BAT: ${sysData.bat.toFixed(0)}%`;
-            
-            if(SIM_MODE) {
+
+            document.getElementById('header-ticker').innerText =
+                `STATUS: ${activeScenario === 0 ? 'NOMINAL' : 'EMERGENCY'} // CH4: ${sysData.ch4.toFixed(2)}% // CO: ${sysData.co.toFixed(0)}ppm // O2: ${sysData.o2.toFixed(1)}% // TEMP: ${sysData.temp.toFixed(1)}°C // HUM: ${sysData.hum.toFixed(0)}% // RSSI: ${sysData.rssi.toFixed(1)}dBm // BAT: ${sysData.bat.toFixed(0)}%`;
+
+            if (SIM_MODE) {
                 document.getElementById('m-dist').innerText = sysData.dist.toFixed(1) + ' cm';
                 document.getElementById('m-rssi').innerText = sysData.rssi.toFixed(1) + ' dBm';
             }
         }
 
         function logEvent(trigger, detected, action) {
-            const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-            eventLog.push({time: timeNow, msg: `[${trigger}] ${detected} -> ${action}`});
-            
+            const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            eventLog.push({ time: timeNow, msg: `[${trigger}] ${detected} -> ${action}` });
+
             const tbody = document.getElementById('events-table-body');
             const row = document.createElement('tr');
             row.innerHTML = `<td style="font-family:'JetBrains Mono'">${timeNow}</td><td>${trigger}</td><td class="highlight-detected">${detected}</td><td>${action}</td>`;
@@ -897,14 +1552,14 @@
                     labels: Array(20).fill(''),
                     datasets: [{
                         label: 'CH4 %', borderColor: '#ff453a', backgroundColor: 'rgba(255, 69, 58, 0.1)',
-                        data: Array(20).fill(0.1), tension: 0.4, borderWidth:2, pointRadius:0, fill: true
+                        data: Array(20).fill(0.1), tension: 0.4, borderWidth: 2, pointRadius: 0, fill: true
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { display: true, border: {display: false}, grid: {color: 'rgba(255,255,255,0.05)'} } }, plugins: { legend: { display: false } } }
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { display: true, border: { display: false }, grid: { color: 'rgba(255,255,255,0.05)' } } }, plugins: { legend: { display: false } } }
             });
         }
         function updateChart() {
-            if(!myChart) return;
+            if (!myChart) return;
             myChart.data.datasets[0].data.shift();
             myChart.data.datasets[0].data.push(sysData.ch4);
             myChart.update();
@@ -916,42 +1571,42 @@
         function isCellBlocked(x, y) {
             if (x < 0 || x >= mapW || y < 0 || y >= mapH) return true;
             const v = gridData[y][x];
-            if (v === 0 || v === 2) return true;
-            if (activeScenario === 2 && y === 6 && x > 3 && x < 11) return true;
+            if (v === 0 || v === 2 || v === 4) return true;   // pillars, hazards, seals
+            if (activeScenario === 2 && y === 15 && x > 5 && x < 15) return true; // collapse in mains
             return false;
         }
 
         function aStar(start, goal) {
-            let openSet = [{pos: start, g: 0, f: 0, parent: null}];
+            let openSet = [{ pos: start, g: 0, f: 0, parent: null }];
             let closedSet = new Set();
-            
-            while(openSet.length > 0) {
-                openSet.sort((a,b) => a.f - b.f);
+
+            while (openSet.length > 0) {
+                openSet.sort((a, b) => a.f - b.f);
                 let current = openSet.shift();
-                
+
                 let cx = current.pos[0], cy = current.pos[1];
-                if(cx === goal[0] && cy === goal[1]) {
+                if (cx === goal[0] && cy === goal[1]) {
                     let path = [];
                     let curr = current;
-                    while(curr) { path.unshift(curr.pos); curr = curr.parent; }
+                    while (curr) { path.unshift(curr.pos); curr = curr.parent; }
                     return path;
                 }
-                
+
                 closedSet.add(`${cx},${cy}`);
-                let neighbors = [[cx, cy-1], [cx, cy+1], [cx-1, cy], [cx+1, cy]];
-                for(let n of neighbors) {
+                let neighbors = [[cx, cy - 1], [cx, cy + 1], [cx - 1, cy], [cx + 1, cy]];
+                for (let n of neighbors) {
                     let nx = n[0], ny = n[1];
                     if (isCellBlocked(nx, ny)) continue;
                     if (closedSet.has(`${nx},${ny}`)) continue;
-                    
+
                     let g = current.g + 1;
                     let h = Math.abs(nx - goal[0]) + Math.abs(ny - goal[1]);
                     let f = g + h;
-                    
+
                     let existing = openSet.find(x => x.pos[0] === nx && x.pos[1] === ny);
-                    if(existing && existing.g <= g) continue;
-                    if(existing) { existing.g = g; existing.f = f; existing.parent = current; } 
-                    else { openSet.push({pos: [nx,ny], g:g, f:f, parent:current}); }
+                    if (existing && existing.g <= g) continue;
+                    if (existing) { existing.g = g; existing.f = f; existing.parent = current; }
+                    else { openSet.push({ pos: [nx, ny], g: g, f: f, parent: current }); }
                 }
             }
             return [];
@@ -963,7 +1618,7 @@
             map.style.gridTemplateColumns = `repeat(${mapW}, 1fr)`;
 
             let dimSignal = document.getElementById('chk-signal') ? document.getElementById('chk-signal').checked : true;
-            if(commsDegraded && dimSignal) map.classList.add('signal-degraded');
+            if (commsDegraded && dimSignal) map.classList.add('signal-degraded');
             else map.classList.remove('signal-degraded');
 
             let collapseZone = false;
@@ -972,24 +1627,23 @@
                 for (let x = 0; x < mapW; x++) {
                     const cell = document.createElement('div');
                     cell.className = 'map-cell';
-                    
-                    const isRover  = roverPos[0] === x && roverPos[1] === y;
-                    const isWorker = workerPos && workerPos[0] === x && workerPos[1] === y;
-                    collapseZone = (activeScenario === 2 && y === 6 && x > 3 && x < 11);
-                    const v = gridData[y][x];
-                    const isMain = (y % 6 === 0 || x % 7 === 0);
 
-                    if (v === 0)                       cell.classList.add('cell-rock');
+                    const isRover = roverPos[0] === x && roverPos[1] === y;
+                    const isWorker = workerPos && workerPos[0] === x && workerPos[1] === y;
+                    collapseZone = (activeScenario === 2 && y === 15 && x > 5 && x < 15);
+                    const v = gridData[y][x];
+
+                    if (v === 0) cell.classList.add('cell-rock');
                     else if (isRover) cell.classList.add('cell-rover');
                     else if (isWorker) cell.classList.add('cell-worker');
-                    else if (v === 2 || collapseZone)  cell.classList.add('cell-hazard');
-                    else if (exits.some(e => e[0]===x && e[1]===y)) { cell.classList.add('cell-exit'); cell.innerText='E'; }
-                    else if (rescuePath.some(p => p[0]===x && p[1]===y)) cell.classList.add('cell-path');
+                    else if (v === 2 || collapseZone) cell.classList.add('cell-hazard');
+                    else if (v === 4) { cell.classList.add('cell-seal'); cell.innerText = 'S'; }
+                    else if (exits.some(e => e[0] === x && e[1] === y)) { cell.classList.add('cell-exit'); cell.innerText = 'E'; }
+                    else if (rescuePath.some(p => p[0] === x && p[1] === y)) cell.classList.add('cell-path');
                     else if (pastPaths.has(`${x},${y}`)) {
                         cell.classList.add('cell-explored');
                         if (v === 3) cell.classList.add('cell-chamber');
                     }
-                    else if (isMain) cell.classList.add('cell-main');
 
                     map.appendChild(cell);
                 }
@@ -1000,8 +1654,8 @@
            8. SYSTEM STATES & AUDIO
            ======================================================== */
         function playBeep() {
-            if(!document.getElementById('audio-toggle').checked) return;
-            if(!beepAudioCtx) beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!document.getElementById('audio-toggle').checked) return;
+            if (!beepAudioCtx) beepAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
             let osc = beepAudioCtx.createOscillator();
             let gain = beepAudioCtx.createGain();
             osc.type = 'square'; osc.frequency.setValueAtTime(800, beepAudioCtx.currentTime);
@@ -1009,17 +1663,17 @@
             osc.start(); gain.gain.exponentialRampToValueAtTime(0.00001, beepAudioCtx.currentTime + 0.5); osc.stop(beepAudioCtx.currentTime + 0.5);
         }
 
-        function setSystemState(stateClass, badgeText=null, badgeColor=null, badgeBg=null) {
+        function setSystemState(stateClass, badgeText = null, badgeColor = null, badgeBg = null) {
             document.body.classList.remove('state-NORMAL', 'state-CRITICAL', 'state-WARNING', 'state-ALERT');
             document.body.classList.add(`state-${stateClass}`);
             const b = document.getElementById('system-status');
-            
-            if(badgeText) {
+
+            if (badgeText) {
                 b.innerText = badgeText;
                 b.style.color = badgeColor;
                 b.style.background = badgeBg || 'transparent';
             }
-            if(stateClass === 'CRITICAL' || stateClass === 'ALERT') playBeep();
+            if (stateClass === 'CRITICAL' || stateClass === 'ALERT') playBeep();
             if (stateClass === 'NORMAL') {
                 b.innerText = 'SYSTEM NORMAL';
                 b.style.color = 'var(--status-safe)';
@@ -1031,9 +1685,9 @@
             isThermal = (mode === 'thermal');
             document.getElementById('tab-rgb').classList.remove('active');
             document.getElementById('tab-thermal').classList.remove('active');
-            document.getElementById('tab-'+mode).classList.add('active');
+            document.getElementById('tab-' + mode).classList.add('active');
             const vw = document.getElementById('video-wrapper');
-            if(isThermal) vw.classList.add('thermal-mode');
+            if (isThermal) vw.classList.add('thermal-mode');
             else vw.classList.remove('thermal-mode');
         }
 
@@ -1045,7 +1699,7 @@
             activeScenario = id;
             scenarioTick = 0;
             logEvent("System", `Scenario ${id} Triggered`, "Auto-Running");
-            
+
             document.querySelectorAll('.time-step').forEach(el => el.className = 'time-step');
             document.getElementById('ts-explore').classList.add('active');
             document.getElementById('ts-explore').previousElementSibling.classList.add('done');
@@ -1059,20 +1713,20 @@
             document.getElementById('m-action').innerText = '--';
             document.getElementById('m-action').style.color = 'var(--accent-main)';
 
-            if (id === 0) { 
+            if (id === 0) {
                 setVisionMode('rgb');
-                renderMap(); 
-                return; 
+                renderMap();
+                return;
             }
             scenarioInterval = setInterval(() => stepScenario(id), 100);
         }
 
         function stepScenario(id) {
             scenarioTick++;
-            
+
             // 1: GAS LEAK
             if (id === 1) {
-                if (scenarioTick < 300) sysData.ch4 += (1.8 - 0.1) / 300; 
+                if (scenarioTick < 300) sysData.ch4 += (1.8 - 0.1) / 300;
                 if (scenarioTick === 50) logEvent("Sensor", "Elevated CH4 Detected", "Monitoring");
                 if (scenarioTick === 200) {
                     setSystemState('WARNING', 'CH4 RISING', 'var(--status-warn)', 'rgba(255,214,10,0.15)');
@@ -1080,7 +1734,7 @@
                 }
                 if (scenarioTick === 300) {
                     setSystemState('CRITICAL', 'TOXIC GAS LEAK', 'var(--status-crit)', 'rgba(255,69,58,0.15)');
-                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-explore').classList.replace('active', 'done');
                     document.getElementById('ts-hazard').classList.add('active');
                     document.getElementById('m-action').innerText = 'EVACUATE';
                     document.getElementById('m-action').style.color = 'var(--status-crit)';
@@ -1102,13 +1756,13 @@
                 }
                 if (scenarioTick === 50) {
                     showToast("STRUCTURAL INSTABILITY — CEILING RISK");
-                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-explore').classList.replace('active', 'done');
                     document.getElementById('ts-hazard').classList.add('active');
                     logEvent("AI Mapper", "Seismic anomaly / Ceiling Cracks", "Rerouting required");
-                    
+
                     let endPoint = [9, 9];
                     rescuePath = aStar(roverPos, endPoint);
-                    if(rescuePath.length > 0) logEvent("A*", "Path recalibrated", "Avoiding Hazards");
+                    if (rescuePath.length > 0) logEvent("A*", "Path recalibrated", "Avoiding Hazards");
                     renderMap();
                     clearInterval(scenarioInterval);
                 }
@@ -1116,43 +1770,44 @@
 
             // 3: WORKER RESCUE
             if (id === 3) {
-                if(scenarioTick === 10) setVisionMode('thermal');
-                if(scenarioTick > 15) confidence = Math.floor(Math.random() * 8 + 92); 
+                if (scenarioTick === 10) setVisionMode('thermal');
+                if (scenarioTick > 15) confidence = Math.floor(Math.random() * 8 + 92);
                 document.getElementById('ai-conf').innerText = confidence + '%';
 
-                if(scenarioTick === 30) {
+                if (scenarioTick === 30) {
                     document.getElementById('thermal-badge').style.display = 'block';
                     setSystemState('ALERT', 'TARGET ACQUIRED', 'var(--status-info)', 'rgba(10,132,255,0.15)');
                     document.getElementById('target-lock').style.display = 'block';
                     document.getElementById('m-action').innerText = 'HALTED';
                     logEvent("YOLOv8", "Human Heat Signature", "Locking Target");
                 }
-                if(scenarioTick === 50) {
-                    workerPos = [8, 7]; 
+                if (scenarioTick === 50) {
+                    workerPos = [26, 3];
+                    rescuePath = aStar(roverPos, exits[exits.length - 1]);
                     document.getElementById('worker-card').style.display = 'flex';
-                    document.getElementById('ts-explore').classList.replace('active','done');
+                    document.getElementById('ts-explore').classList.replace('active', 'done');
                     document.getElementById('ts-worker').classList.add('active');
                     logEvent("System", "Worker Identified #07", "Awaiting Rescue PIN");
-                    
+
                     workerSeconds = 0;
-                    workerTimer = setInterval(()=>{
+                    workerTimer = setInterval(() => {
                         workerSeconds++;
-                        let m = String(Math.floor(workerSeconds/60)).padStart(2,'0');
-                        let s = String(workerSeconds%60).padStart(2,'0');
+                        let m = String(Math.floor(workerSeconds / 60)).padStart(2, '0');
+                        let s = String(workerSeconds % 60).padStart(2, '0');
                         document.getElementById('w-time').innerText = `${m}:${s}`;
-                        
-                        if(workerPos) {
-                            let distMeters = (Math.abs(roverPos[0]-workerPos[0]) + Math.abs(roverPos[1]-workerPos[1])) * 2;
+
+                        if (workerPos) {
+                            let distMeters = (Math.abs(roverPos[0] - workerPos[0]) + Math.abs(roverPos[1] - workerPos[1])) * 2;
                             document.getElementById('w-dist').innerText = `${distMeters} m`;
                             document.getElementById('w-gas').innerText = `${sysData.ch4.toFixed(1)}%`;
                         }
                     }, 1000);
                 }
-                if(scenarioTick === 90) {
+                if (scenarioTick === 90) {
                     rescuePath = aStar(roverPos, workerPos);
                     document.getElementById('w-loc').innerText = `GRID I-8`;
-                    
-                    if(rescuePath.length === 0) {
+
+                    if (rescuePath.length === 0) {
                         logEvent("A* Pathfinding", "No safe path found!", "REROUTING FAILED");
                         showToast("PATH BLOCKED BY HAZARDS!");
                     } else {
@@ -1160,16 +1815,16 @@
                         logEvent("A* Pathfinding", "Safe route calculated", "Displaying on Grid");
                     }
                     renderMap();
-                    document.getElementById('ts-worker').classList.replace('active','done');
+                    document.getElementById('ts-worker').classList.replace('active', 'done');
                     document.getElementById('ts-rescue').classList.add('active');
                 }
-                if(scenarioTick > 100 && scenarioTick % 10 === 0 && rescuePath.length > 0) {
+                if (scenarioTick > 100 && scenarioTick % 10 === 0 && rescuePath.length > 0) {
                     roverPos = rescuePath.shift();
                     pastPaths.add(`${roverPos[0]},${roverPos[1]}`);
                     renderMap();
                 }
-                if(rescuePath.length === 0 && scenarioTick > 110) {
-                    document.getElementById('ts-rescue').classList.replace('active','done');
+                if (rescuePath.length === 0 && scenarioTick > 110) {
+                    document.getElementById('ts-rescue').classList.replace('active', 'done');
                     document.getElementById('ts-return').classList.add('active');
                     clearInterval(scenarioInterval);
                 }
@@ -1180,20 +1835,20 @@
            10. BASE LOOP & EXPORT
            ======================================================== */
         function updateTelemetryTick() {
-            if(activeScenario === 0) {
-                sysData.ch4 = Math.max(0, sysData.ch4 + (Math.random()-0.5)*0.02);
-                sysData.rssi = Math.min(-30, sysData.rssi + (Math.random()-0.5)*2);
-                sysData.temp = 28 + (Math.random()-0.5)*0.5;
-                sysData.co = Math.max(0, sysData.co + (Math.random()-0.5)*1);
-                sysData.o2 = Math.min(21, Math.max(19, sysData.o2 + (Math.random()-0.5)*0.1));
-                sysData.hum = Math.max(40, Math.min(80, sysData.hum + (Math.random()-0.5)*2));
-                sysData.dist = Math.max(15, Math.min(200, sysData.dist + (Math.random()-0.5)*15));
+            if (activeScenario === 0) {
+                sysData.ch4 = Math.max(0, sysData.ch4 + (Math.random() - 0.5) * 0.02);
+                sysData.rssi = Math.min(-30, sysData.rssi + (Math.random() - 0.5) * 2);
+                sysData.temp = 28 + (Math.random() - 0.5) * 0.5;
+                sysData.co = Math.max(0, sysData.co + (Math.random() - 0.5) * 1);
+                sysData.o2 = Math.min(21, Math.max(19, sysData.o2 + (Math.random() - 0.5) * 0.1));
+                sysData.hum = Math.max(40, Math.min(80, sysData.hum + (Math.random() - 0.5) * 2));
+                sysData.dist = Math.max(15, Math.min(200, sysData.dist + (Math.random() - 0.5) * 15));
             }
-            
+
             sysData.bat = Math.max(0, sysData.bat - 0.01);
-            if(sysData.bat < 20) document.getElementById('map-bat').style.color = 'var(--status-warn)';
+            if (sysData.bat < 20) document.getElementById('map-bat').style.color = 'var(--status-warn)';
             document.getElementById('map-bat').innerText = `[BAT] ${Math.floor(sysData.bat)}%`;
-            
+
             renderGauges();
             updateChart();
         }
@@ -1201,16 +1856,16 @@
         function openReportModal() {
             const modal = document.getElementById('reportModal');
             const dataArea = document.getElementById('reportData');
-            
-            let rpt = `=======================================\n  POST-INCIDENT MISSION REPORT\n  ID: MINE-RESCUE-${Math.floor(Math.random()*10000)}\n=======================================\n\n`;
+
+            let rpt = `=======================================\n  POST-INCIDENT MISSION REPORT\n  ID: MINE-RESCUE-${Math.floor(Math.random() * 10000)}\n=======================================\n\n`;
             rpt += `FINAL TELEMETRY:\n- Peak CH4: ${sysData.ch4.toFixed(2)}%\n- Final Battery: ${Math.floor(sysData.bat)}%\n- Last Signal: ${sysData.rssi.toFixed(1)}dBm\n\n`;
-            
-            if(workerPos) rpt += `WORKER RESCUE DETAILS:\n- Worker Located at Grid: [${workerPos[0]}, ${workerPos[1]}]\n- Extraction Path Generated: YES\n\n`;
+
+            if (workerPos) rpt += `WORKER RESCUE DETAILS:\n- Worker Located at Grid: [${workerPos[0]}, ${workerPos[1]}]\n- Extraction Path Generated: YES\n\n`;
 
             rpt += `EVENT LOG:\n`;
             eventLog.forEach(e => { rpt += `[${e.time}] ${e.msg}\n`; });
-            if(eventLog.length === 0) rpt += "No events logged.\n";
-            
+            if (eventLog.length === 0) rpt += "No events logged.\n";
+
             dataArea.value = rpt;
             modal.style.display = 'flex';
         }
@@ -1221,10 +1876,11 @@
             a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
             a.download = `Incident_Report_${Date.now()}.txt`;
             a.click();
-            document.getElementById('reportModal').style.display='none';
+            document.getElementById('reportModal').style.display = 'none';
         }
 
         window.onload = init;
     </script>
 </body>
+
 </html>
